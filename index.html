@@ -1,0 +1,2343 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>کرافتِ بقا — بازی سه‌بعدی</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b1018; --panel:rgba(13,19,29,.9); --line:rgba(255,255,255,.09);
+  --gold:#f2c14e; --red:#ef5350; --orange:#ffb300; --blue:#4fc3f7; --green:#66bb6a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  overflow:hidden;font-family:'Vazirmatn',Tahoma,sans-serif;background:var(--bg);
+  color:#eef2f7;user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none;
+}
+canvas.game{position:fixed;inset:0;z-index:0;display:block}
+.hidden{display:none!important}
+
+/* ---------- پنل شیشه‌ای عمومی ---------- */
+.panel{
+  background:var(--panel);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.55);
+}
+.panel-title{
+  color:var(--gold);font-size:13px;font-weight:800;text-align:center;
+  padding:10px 14px 8px;border-bottom:1px solid var(--line);
+}
+
+/* ---------- نوار بالا ---------- */
+#topbar{position:fixed;top:12px;left:12px;z-index:100;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{
+  display:flex;align-items:center;gap:7px;background:var(--panel);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:700;
+  box-shadow:0 6px 22px rgba(0,0,0,.45);
+}
+.pill svg{flex:none}
+.pill.gold{color:var(--gold)}
+.pill.danger{border-color:rgba(239,83,80,.5);color:#ff8a80}
+.pill.danger b{font-size:13px}
+.day-prog{width:56px;height:4px;background:rgba(255,255,255,.12);border-radius:4px;overflow:hidden}
+.day-prog i{display:block;height:100%;background:var(--gold);width:0%}
+#mute-btn{cursor:pointer;color:#cfd8e3;font-family:inherit}
+#mute-btn:hover{background:rgba(255,255,255,.1)}
+
+/* ---------- نقشه ---------- */
+#minimap{
+  position:fixed;top:12px;right:12px;z-index:100;width:148px;height:148px;
+  border-radius:50%;border:2px solid rgba(242,193,78,.45);box-shadow:0 8px 30px rgba(0,0,0,.55);
+  background:#0c141f;
+}
+
+/* ---------- HUD ---------- */
+#hud{
+  position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:100;
+  display:flex;flex-direction:column;gap:7px;padding:11px 16px;min-width:320px;max-width:94vw;
+}
+#hud .row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.stat{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700}
+.stat .bar{width:66px;height:5px;background:rgba(255,255,255,.1);border-radius:6px;overflow:hidden}
+.stat .bar i{display:block;height:100%;border-radius:6px;transition:width .25s ease}
+.stat .val{min-width:24px;text-align:center;font-size:11px;color:rgba(255,255,255,.85)}
+.stat.hp{color:#ff8a80}.stat.hp i{background:var(--red)}
+.stat.en{color:var(--orange)}.stat.en i{background:var(--orange)}
+.stat.hu{color:#ff9b6a}.stat.hu i{background:#ff7043}
+.stat.th{color:var(--blue)}.stat.th i{background:var(--blue)}
+.xp-row{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:7px}
+.xp-row .lvl{color:var(--gold);font-size:11px;font-weight:800;white-space:nowrap}
+.xp-row .bar{flex:1;height:4px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden}
+.xp-row .bar i{display:block;height:100%;background:var(--gold);transition:width .3s ease}
+
+/* ---------- راهنمای اکشن ---------- */
+#action-hint{
+  position:fixed;bottom:150px;left:50%;transform:translateX(-50%);z-index:100;
+  background:var(--panel);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  border:1px solid var(--line);border-radius:999px;
+  padding:6px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px;
+  box-shadow:0 6px 20px rgba(0,0,0,.5);
+}
+#hint-key{
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:6px;
+  padding:1px 8px;font-family:monospace;font-size:11px;
+}
+
+/* ---------- کیف ---------- */
+#inventory{position:fixed;right:12px;top:50%;transform:translateY(-50%);z-index:110;padding-bottom:8px}
+#inv-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:8px;max-height:56vh;overflow-y:auto}
+.inv-item{
+  position:relative;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03);
+  border-radius:10px;padding:6px 4px 4px;text-align:center;cursor:pointer;min-width:60px;
+  transition:background .15s,transform .1s,border-color .15s;
+}
+.inv-item:hover{background:rgba(255,255,255,.09)}
+.inv-item:active{transform:scale(.93)}
+.inv-item .cnt{display:block;font-size:17px;font-weight:800;color:var(--gold);line-height:1.15}
+.inv-item .lab{display:flex;align-items:center;justify-content:center;gap:4px;font-size:9px;opacity:.75;margin-top:2px}
+.inv-item .lab i{font-style:normal}
+.inv-item.empty{opacity:.4}
+.inv-item.equipped{border-color:var(--gold);background:rgba(242,193,78,.14)}
+/* نوار دوام ابزار */
+.inv-item .dur{display:block;height:2px;background:rgba(255,255,255,.12);border-radius:2px;margin:3px 5px 0;overflow:hidden}
+.inv-item .dur b{display:block;height:100%;background:var(--green);transition:width .2s}
+.inv-item .dur b.low{background:var(--orange)}
+.inv-item .dur b.crit{background:var(--red)}
+#inventory::-webkit-scrollbar,#craft-list::-webkit-scrollbar{width:3px}
+#inventory::-webkit-scrollbar-thumb,#craft-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:6px}
+
+/* ---------- کارگاه ---------- */
+#craft-panel{position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:110;width:250px;display:none}
+#craft-panel.show{display:block;animation:slideIn .22s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(-50%) translateX(-16px)}to{opacity:1;transform:translateY(-50%)}}
+#craft-list{display:flex;flex-direction:column;gap:5px;padding:9px;max-height:58vh;overflow-y:auto}
+.craft-cat{color:rgba(255,255,255,.45);font-size:10px;font-weight:800;margin:4px 2px 1px}
+.craft-row{
+  display:flex;gap:10px;align-items:center;text-align:right;background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:8px 10px;cursor:pointer;
+  color:#eef2f7;font-family:inherit;transition:background .15s,border-color .15s,transform .1s;
+}
+.craft-row:hover{background:rgba(102,187,106,.12);border-color:rgba(102,187,106,.35)}
+.craft-row:active{transform:scale(.97)}
+.craft-row.off{opacity:.45}
+.craft-row .cr-ic{color:var(--gold);flex:none;display:flex}
+.craft-row .cr-mid{flex:1;display:flex;flex-direction:column;gap:3px}
+.craft-row b{font-size:11.5px}
+.craft-row small{font-size:9px;opacity:.6}
+.chips{display:flex;gap:5px;flex-wrap:wrap}
+.chip{display:flex;align-items:center;gap:3px;font-size:9.5px;background:rgba(255,255,255,.07);border-radius:6px;padding:2px 6px}
+.chip.lack{color:#ff8a80;background:rgba(239,83,80,.14)}
+#craft-close{
+  margin:0 9px 9px;padding:7px;border-radius:10px;background:rgba(239,83,80,.12);
+  border:1px solid rgba(239,83,80,.3);color:#ff8a80;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;
+}
+#craft-close:hover{background:rgba(239,83,80,.22)}
+#craft-toggle{
+  position:fixed;bottom:95px;left:50%;transform:translateX(-50%);
+  z-index:200;width:48px;height:48px;border-radius:50%;
+  background:rgba(242,193,78,.2);border:1.5px solid rgba(242,193,78,.6);color:var(--gold);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  box-shadow:0 4px 15px rgba(0,0,0,.5);transition:transform .12s,background .15s;font-family:inherit;
+}
+#craft-toggle:hover{transform:scale(1.08);background:rgba(242,193,78,.28)}
+#craft-toggle:active{transform:scale(.92)}
+
+/* ---------- کنترل موبایل ---------- */
+#actions{
+  position:fixed;right:18px;bottom:24px;z-index:200;
+  display:flex;align-items:center;gap:14px;
+}
+body:not(.touch) #actions{display:none}
+
+#actions button{
+  width:56px;height:56px;border-radius:50%;
+  background:rgba(20,28,40,.85);
+  border:2px solid rgba(255,255,255,.3);
+  color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  font-family:inherit;transition:transform .08s,background .15s;
+  box-shadow:0 4px 12px rgba(0,0,0,.5);
+}
+#actions button:active{
+  transform:scale(.85);
+  background:rgba(40,55,75,.95);
+}
+#btn-attack{width:66px;height:66px;background:rgba(239,83,80,.18);border-color:rgba(239,83,80,.5);color:#ff8a80}
+#btn-run{
+  position:fixed;left:25px;bottom:40px;z-index:200;
+  width:44px;height:44px;color:#cfd8e3;
+  background:rgba(20,28,40,.85);border:2px solid rgba(255,255,255,.3);
+  display:none;align-items:center;justify-content:center;
+  border-radius:50%;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);cursor:pointer;
+}
+body.touch #btn-run{display:flex}
+#btn-run.on{background:rgba(255,179,0,.22);border-color:rgba(255,179,0,.6);color:var(--orange)}
+#joy{position:fixed;inset:0;pointer-events:none;z-index:115;display:none}
+#joy.on{display:block}
+#joy-base{position:fixed;width:108px;height:108px;border:2px solid rgba(255,255,255,.22);border-radius:50%;background:rgba(255,255,255,.05);transform:translate(-50%,-50%)}
+#joy-knob{position:fixed;width:46px;height:46px;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.4);border-radius:50%;transform:translate(-50%,-50%)}
+#keys-help{
+  position:fixed;bottom:14px;left:14px;z-index:95;font-size:10px;line-height:1.9;color:rgba(255,255,255,.5);
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 14px;
+}
+#keys-help b{color:rgba(255,255,255,.85);font-family:monospace}
+body.touch #keys-help{display:none}
+
+/* ---------- پیام‌ها ---------- */
+#toasts{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:130;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.toast{
+  background:var(--panel);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  border:1px solid var(--line);border-radius:12px;
+  padding:8px 20px;font-size:12.5px;font-weight:700;max-width:92vw;text-align:center;
+  box-shadow:0 8px 26px rgba(0,0,0,.5);animation:msgIn .25s ease;transition:opacity .35s,transform .35s;
+}
+.toast.out{opacity:0;transform:translateY(-10px)}
+@keyframes msgIn{from{opacity:0;transform:translateY(-12px) scale(.96)}to{opacity:1}}
+
+/* ---------- پاپ‌آپ دنیای بازی ---------- */
+#popups{position:fixed;inset:0;pointer-events:none;z-index:60}
+.wpop{position:fixed;left:0;top:0;font-weight:800;font-size:13px;text-shadow:0 2px 8px rgba(0,0,0,.9);white-space:nowrap;display:none}
+
+/* ---------- افکت آسیب ---------- */
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:70;opacity:0;transition:opacity .4s;box-shadow:inset 0 0 130px 45px rgba(213,45,45,.55)}
+#vignette.hit{animation:vhit .5s ease}
+#vignette.low{opacity:.55}
+@keyframes vhit{0%{opacity:1}100%{opacity:0}}
+
+/* ---------- محو خواب ---------- */
+#sleep-fade{position:fixed;inset:0;background:#000;opacity:0;transition:opacity .8s ease;pointer-events:none;z-index:250}
+#sleep-fade.show{opacity:1}
+
+/* ---------- صفحه‌های تمام‌صفحه ---------- */
+.overlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:rgba(7,10,16,.74);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px)}
+.ov-box{width:min(420px,92vw);text-align:center;padding:28px 26px}
+.ov-box h1{font-size:30px;font-weight:800;color:var(--gold);letter-spacing:-.5px}
+.ov-box h1 span{color:#fff}
+.ov-sub{font-size:12.5px;color:rgba(255,255,255,.6);margin:8px 0 20px;line-height:1.9}
+.btn{
+  display:inline-block;padding:11px 22px;border-radius:12px;border:1px solid var(--line);
+  background:rgba(255,255,255,.06);color:#eef2f7;font-family:inherit;font-size:14px;font-weight:700;
+  cursor:pointer;transition:background .15s,transform .1s;margin:4px;
+}
+.btn:hover{background:rgba(255,255,255,.13)}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:var(--gold);color:#141d28;border-color:transparent}
+.ss-help{margin-top:20px;border-top:1px solid var(--line);padding-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:5px 14px;font-size:10.5px;color:rgba(255,255,255,.55);text-align:right}
+.ss-help b{color:rgba(255,255,255,.85);font-family:monospace;font-size:10px}
+#death-title{color:var(--red)}
+#death-reason{font-size:14px;font-weight:800;color:#ff8a80;margin:6px 0 4px}
+#death-stats{font-size:12px;color:rgba(255,255,255,.65);margin-bottom:18px}
+#death-stats b{color:var(--gold)}
+
+/* ---------- واکنش‌گرا ---------- */
+@media (max-width:768px){
+  #hud{min-width:250px;padding:8px 11px;bottom:8px}
+  .stat .bar{width:42px;height:4px}
+  .stat{font-size:9px;gap:4px}
+  #minimap{width:102px;height:102px}
+  #inventory{right:6px;min-width:0}
+  .inv-item{min-width:46px;padding:4px 2px}
+  .inv-item .cnt{font-size:14px}
+  #craft-panel{left:6px;width:212px}
+  #action-hint{bottom:148px;font-size:11px}
+  #craft-toggle{bottom:98px;width:44px;height:44px}
+  #actions{right:14px;bottom:24px;gap:14px}
+  #btn-run{left:20px;bottom:35px}
+  .toast{font-size:11px;padding:7px 15px}
+}
+</style>
+</head>
+<body>
+
+<!-- لایه‌های بازی -->
+<div id="popups"></div>
+<div id="vignette"></div>
+<div id="sleep-fade"></div>
+<div id="toasts"></div>
+
+<!-- نوار بالا -->
+<div id="topbar">
+  <div class="pill"><span id="day-icon"></span><span id="day-text">روز ۱</span><span class="day-prog"><i id="day-prog-fill"></i></span></div>
+  <div class="pill gold"><span id="score-ic"></span><span id="score-val">۰</span></div>
+  <div class="pill danger hidden">خطر: <b id="danger-val">۰</b></div>
+  <button class="pill" id="mute-btn" title="صدا (M)"></button>
+</div>
+
+<canvas id="minimap" width="148" height="148"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="panel">
+  <div class="row">
+    <div class="stat hp"><span class="sic" data-ic="heart"></span><span class="bar"><i id="health-fill"></i></span><span class="val" id="health-val">۱۰۰</span></div>
+    <div class="stat en"><span class="sic" data-ic="bolt"></span><span class="bar"><i id="energy-fill"></i></span><span class="val" id="energy-val">۱۰۰</span></div>
+    <div class="stat hu"><span class="sic" data-ic="meat"></span><span class="bar"><i id="hunger-fill"></i></span><span class="val" id="hunger-val">۱۰۰</span></div>
+    <div class="stat th"><span class="sic" data-ic="droplet"></span><span class="bar"><i id="thirst-fill"></i></span><span class="val" id="thirst-val">۱۰۰</span></div>
+  </div>
+  <div class="xp-row">
+    <span class="lvl" id="level-val">سطح ۱</span>
+    <span class="bar"><i id="xp-fill"></i></span>
+  </div>
+</div>
+
+<!-- راهنمای اکشن -->
+<div id="action-hint" class="hidden"><span id="hint-key">E</span><span id="hint-text"></span></div>
+
+<!-- کیف -->
+<div id="inventory" class="panel">
+  <div class="panel-title">کیف</div>
+  <div id="inv-grid"></div>
+</div>
+
+<!-- کارگاه -->
+<div id="craft-panel" class="panel">
+  <div class="panel-title">کارگاه ساخت</div>
+  <div id="craft-list"></div>
+  <button id="craft-close">بستن کارگاه</button>
+</div>
+<button id="craft-toggle" title="کارگاه (C)"></button>
+
+<!-- کنترل موبایل -->
+<button id="btn-run" title="دویدن"></button>
+<div id="actions">
+  <button id="btn-attack" title="حمله"></button>
+  <button id="btn-interact" title="برداشت / تعامل"></button>
+</div>
+<div id="joy"><div id="joy-base"></div><div id="joy-knob"></div></div>
+
+<!-- راهنمای کلیدها (دسکتاپ) -->
+<div id="keys-help">
+  <b>WASD</b> حرکت &nbsp; <b>Shift</b> دویدن &nbsp; <b>E</b> برداشت/تعامل<br>
+  <b>Space/کلیک</b> حمله/تیر &nbsp; <b>درگ ماوس</b> دوربین &nbsp; <b>1-5</b> ابزار<br>
+  <b>C</b> کارگاه &nbsp; <b>P</b> توقف &nbsp; <b>M</b> صدا
+</div>
+
+<!-- صفحه شروع -->
+<div id="start-screen" class="overlay">
+  <div class="ov-box panel">
+    <h1>کرافتِ <span>بقا</span></h1>
+    <p class="ov-sub">جمع‌آوری کن، ابزار بساز، آتش روشن نگه‌دار<br>و از گرگ‌های شب زنده بیرون بیا.</p>
+    <div>
+      <button class="btn primary" id="btn-new">بازی جدید</button>
+      <button class="btn hidden" id="btn-continue">ادامه بازی</button>
+    </div>
+    <div class="ss-help">
+      <span><b>WASD / جوی‌استیک</b></span><span>حرکت</span>
+      <span><b>E / لمس دکمه</b></span><span>برداشت و تعامل</span>
+      <span><b>Space / ⚔</b></span><span>حمله و تیراندازی</span>
+      <span><b>C</b></span><span>کارگاه ساخت</span>
+      <span><b>شب‌ها</b></span><span>کنار آتش بمان!</span>
+    </div>
+  </div>
+</div>
+
+<!-- توقف -->
+<div id="pause-screen" class="overlay hidden">
+  <div class="ov-box panel">
+    <h1 style="color:#fff">توقف</h1>
+    <p class="ov-sub">بازی متوقف شد</p>
+    <div>
+      <button class="btn primary" id="btn-resume">ادامه</button>
+      <button class="btn" id="btn-sound">صدا: روشن</button>
+      <button class="btn" id="btn-restart">شروع دوباره</button>
+    </div>
+  </div>
+</div>
+
+<!-- مرگ -->
+<div id="death-screen" class="overlay hidden">
+  <div class="ov-box panel">
+    <h1 id="death-title">از پا افتادی!</h1>
+    <div id="death-reason"></div>
+    <div id="death-stats"></div>
+    <button class="btn primary" id="btn-respawn">بازگشت به زندگی</button>
+  </div>
+</div>
+
+<!-- Three.js -->
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================
+   ۱) ابزارهای کمکی
+============================================================ */
+const $ = id => document.getElementById(id);
+const fa = n => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const clamp = (v,a,b) => v<a?a:v>b?b:v;
+const rand = (a,b) => a + Math.random()*(b-a);
+const TAU = Math.PI*2;
+const isTouch = matchMedia('(pointer:coarse)').matches;
+if(isTouch) document.body.classList.add('touch');
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
+function lerpAngle(a,b,t){
+  let d=((b-a+Math.PI)%TAU+TAU)%TAU-Math.PI;
+  return a+d*Math.min(1,t);
+}
+
+/* ============================================================
+   ۲) آیکون‌های SVG
+============================================================ */
+const IC = {
+  heart:'<path d="M12 20.5S4 15 4 9.7C4 7 6.2 5 8.7 5c1.5 0 2.6.8 3.3 1.9C12.7 5.8 13.8 5 15.3 5 17.8 5 20 7 20 9.7 20 15 12 20.5 12 20.5Z" fill="currentColor" stroke="none"/>',
+  bolt:'<path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2Z" fill="currentColor" stroke="none"/>',
+  droplet:'<path d="M12 3s6 7.2 6 11a6 6 0 0 1-12 0c0-3.8 6-11 6-11Z" fill="currentColor" stroke="none"/>',
+  meat:'<path d="M15.5 3a5.5 5.5 0 0 1 5.5 5.5c0 4-3 6.5-7 6.5-1 0-1.9.4-2.6 1.1L9 18"/><circle cx="7" cy="20" r="1.6"/><circle cx="4.6" cy="17.6" r="1.6"/>',
+  steak:'<path d="M4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8-8-3.6-8-8Z"/><path d="M9.5 12a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0-5 0Z"/>',
+  wood:'<ellipse cx="6.5" cy="12" rx="3" ry="6.5"/><path d="M6.5 5.5H15c3 0 5.5 2.9 5.5 6.5S18 18.5 15 18.5H6.5"/><circle cx="6.5" cy="12" r="1.2" fill="currentColor" stroke="none"/>',
+  stone:'<path d="M8 4.5 15 3l5.5 4.5-1 8-7.5 3.5L5 15.5l-.5-7L8 4.5Z"/>',
+  iron:'<path d="M7 9.5h10l2.5 6h-15l2.5-6Z"/><path d="M9 9.5l1.2-3h4l1.2 3"/>',
+  food:'<path d="M12 7.5C9.2 5.6 5 7.6 5 12c0 4.2 3 8 7 8s7-3.8 7-8c0-4.4-4.2-6.4-7-4.5Z"/><path d="M12 7.5V5c0-1.5 1-2.5 2.5-3"/>',
+  axe:'<path d="M14.5 6.5 6 21"/><path d="M12.5 4.5c1.8-1.6 4.6-2.2 7-1.5.8 2.5.2 5.3-1.4 7.1-1.2-2.4-3-4.1-5.6-5.6Z"/>',
+  pickaxe:'<path d="M5 21 15 11"/><path d="M7 8a12 12 0 0 1 12 3"/><path d="M7 8 5 6M19 11l2 1"/>',
+  sword:'<path d="M20 4 8.5 15.5 7 18l2.5-1.5L21 5.5 20 4Z"/><path d="M9 12l3 3"/><path d="M6 15l3 3"/><path d="M4 19l1.5-1.5"/>',
+  helmet:'<path d="M4 15a8 8 0 0 1 16 0"/><path d="M2.5 15h19l-1.2 3.5h-16.6L2.5 15Z"/><path d="M12 7V4.5"/>',
+  house:'<path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10v10h11V10"/><path d="M10.2 20v-5.5h3.6V20"/>',
+  flame:'<path d="M12 3c1 3.5 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.2 1.5 1 2.5 2.2 3C10.8 8 11.5 5.5 12 3Z"/><path d="M5 20.5 8.2 19M19 20.5 15.8 19"/>',
+  furnace:'<rect x="5" y="7" width="14" height="13" rx="1.5"/><path d="M8 4h8v3H8Z"/><path d="M9 16.5c0-2 1.3-3.3 3-3.3s3 1.3 3 3.3"/>',
+  chest:'<rect x="4" y="6" width="16" height="13" rx="2"/><path d="M4 11h16"/><rect x="10.7" y="9.5" width="2.6" height="3" rx="0.8"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon:'<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 7 7 0 0 0 20 14.5Z"/>',
+  trophy:'<path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4v2a4 4 0 0 0 4 4M17 5h3v2a4 4 0 0 1-4 4"/><path d="M12 13v4M8 21h8M9 17h6"/>',
+  hammer:'<path d="M10 5.5 14.5 2 20 7.5 16.5 12 10 5.5Z"/><path d="M12.5 9 3.5 18l2.5 2.5 9-9"/>',
+  run:'<path d="M4 7h6M3 12h6M4 17h6"/><path d="M13 5l7 7-7 7"/>',
+  volume:'<path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16 9a4 4 0 0 1 0 6"/>',
+  volumeOff:'<path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16 9l5 6M21 9l-5 6"/>',
+  bow:'<path d="M6 3c8 2 13 9 13 15"/><path d="M6 3c-2 6-2 12 0 18"/><path d="M6 3v18"/><path d="M9 12h9"/><path d="M15 9l3 3-3 3"/>',
+  arrow:'<path d="M5 19 19 5"/><path d="M12 5h7v7"/>',
+};
+function ic(n, s=16){
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[n]||''}</svg>`;
+}
+document.querySelectorAll('.sic').forEach(el=>el.innerHTML=ic(el.dataset.ic,15));
+ $('score-ic').innerHTML = ic('trophy',15);
+ $('craft-toggle').innerHTML = ic('hammer',24);
+ $('btn-attack').innerHTML = ic('sword',26);
+ $('btn-interact').innerHTML = ic('bolt',22);
+ $('btn-run').innerHTML = ic('run',18);
+ $('mute-btn').innerHTML = ic('volume',15);
+ $('day-icon').innerHTML = ic('sun',15);
+
+/* ============================================================
+   ۳) تنظیمات و داده‌های بازی
+============================================================ */
+const CFG = {
+  world:64, daySec:150, nightSec:95,
+  walk:4.4, run:7.6,
+  interactR:2.6, harvestEnergy:5, attackEnergy:7,
+  fuelMax:60, arrowDmg:45, preyArrowDmg:60,
+};
+const B = CFG.world/2 - 1.5;
+const LAKE = {x:11, z:-8, r:5.5};
+
+const ITEM = {
+  wood:{n:'چوب',ic:'wood'}, stone:{n:'سنگ',ic:'stone'}, iron:{n:'آهن',ic:'iron'},
+  food:{n:'غذا',ic:'food'}, rawMeat:{n:'گوشت خام',ic:'steak'}, water:{n:'قوطی آب',ic:'droplet'},
+  axe:{n:'تبر',ic:'axe'}, pickaxe:{n:'کلنگ',ic:'pickaxe'},
+  sword:{n:'شمشیر سنگی',ic:'sword'}, ironSword:{n:'شمشیر آهنی',ic:'sword'}, helmet:{n:'کلاه ایمنی',ic:'helmet'},
+  bow:{n:'کمان',ic:'bow'}, arrow:{n:'تیر',ic:'arrow'},
+  campfire:{n:'آتش‌گاه',ic:'flame'}, furnace:{n:'کوره',ic:'furnace'},
+  shelter:{n:'سرپناه',ic:'house'}, chest:{n:'صندوق',ic:'chest'},
+};
+const INV_DEF = [
+  {id:'wood'},{id:'stone'},{id:'iron'},
+  {id:'food'},{id:'rawMeat'},{id:'water'},
+  {id:'axe'},{id:'pickaxe'},{id:'sword'},{id:'ironSword'},{id:'helmet'},{id:'bow'},{id:'arrow'},
+  {id:'campfire'},{id:'furnace'},{id:'shelter'},{id:'chest'},
+];
+const RECIPES = [
+  {id:'axe',      cost:{wood:3,stone:2}, cat:'tool',  tip:'چوب ۳ برابر با هر ضربه — دوام ۱۰۰'},
+  {id:'pickaxe',  cost:{wood:2,stone:3}, cat:'tool',  tip:'سنگ ۳ برابر با هر ضربه — دوام ۱۰۰'},
+  {id:'sword',    cost:{wood:3,stone:4}, cat:'tool',  tip:'آسیب ۳۵ به دشمن'},
+  {id:'ironSword',cost:{wood:1,iron:3},  cat:'tool',  tip:'آسیب ۶۵ — آهن از کوره'},
+  {id:'helmet',   cost:{wood:3,stone:3}, cat:'tool',  tip:'۴۰٪ کاهش آسیب دریافتی'},
+  {id:'bow',      cost:{wood:5},         cat:'tool',  tip:'حمله از راه دور با Space'},
+  {id:'arrow',    cost:{wood:2},         cat:'tool',  tip:'هر ساخت = ۳ تیر'},
+  {id:'campfire', cost:{wood:3,stone:1}, cat:'build', tip:'نور، گرم، پخت گوشت، دفع دشمن'},
+  {id:'furnace',  cost:{wood:2,stone:5}, cat:'build', tip:'۲ سنگ + ۱ چوب ← ۱ آهن'},
+  {id:'shelter',  cost:{wood:6,stone:3}, cat:'build', tip:'خواب شبانه + نقطه بازگشت'},
+  {id:'chest',    cost:{wood:4,stone:2}, cat:'build', tip:'حفظ ۷۵٪ منابع هنگام مرگ'},
+];
+const NODE_HP = {tree:3, rock:4, bush:1};
+const LABEL = {tree:'برداشت چوب', rock:'استخراج سنگ', bush:'چیدن میوه'};
+const STRUCT_R = {campfire:.55, furnace:.6, chest:.45, shelter:1.15};
+
+/* ---------- وضعیت بازی ---------- */
+const state = {
+  running:false, paused:false, dead:false, sleeping:false,
+  t:20, day:1, isNight:false, wasNight:false, coldWarned:false, hpWarn:false,
+  level:1, score:0, invuln:0, runLock:false, runningFast:false, moving:false,
+  stats:{health:100, energy:100, hunger:100, thirst:100, xp:0},
+  inv:{wood:0,stone:0,iron:0,food:2,rawMeat:0,water:1,
+       axe:0,pickaxe:0,sword:0,ironSword:0,helmet:0,bow:0,arrow:0,
+       campfire:0,furnace:0,shelter:0,chest:0},
+  equipped:null, helmetOn:false,
+  dur:{axe:0,pickaxe:0,sword:0,ironSword:0},   /* دوام ابزار: ۱۰۰=سالم */
+  respawn:{x:0,z:0}, hasChest:false,
+  tipTool:false, tipFire:false,
+};
+const xpNeed = () => state.level*80;
+
+/* فرسایش ابزار — بعد از هر ضربه‌ی موفق صدا زده می‌شود */
+function wearTool(id){
+  if(!id||!state.inv[id]) return;
+  if(!state.dur[id]) state.dur[id]=100;
+  state.dur[id]--;
+  if(state.dur[id]<=0){
+    state.inv[id]--; state.dur[id]=0;
+    if(state.equipped===id){ state.equipped=null; updateEquippedTool(); }
+    msg(`${ITEM[id].n} شکست! باید یکی دیگر بسازی.`);
+    Sfx.hit();
+  }
+  refreshInventory();
+}
+
+/* ============================================================
+   ۴) موتور صدا
+============================================================ */
+const Sfx = (()=>{
+  let ctx=null, master=null, noiseBuf=null, muted=false;
+  function init(){
+    if(ctx){ if(ctx.state==='suspended') ctx.resume(); return; }
+    ctx = new (window.AudioContext||window.webkitAudioContext)();
+    if(ctx.state==='suspended') ctx.resume();
+    master = ctx.createGain(); master.gain.value = .55; master.connect(ctx.destination);
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+  }
+  function tone(f,dur,type='sine',vol=.25,glide=0,at=0){
+    if(!ctx||muted) return;
+    const t0=ctx.currentTime+at, o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type; o.frequency.setValueAtTime(f,t0);
+    if(glide) o.frequency.exponentialRampToValueAtTime(glide,t0+dur);
+    g.gain.setValueAtTime(vol,t0);
+    g.gain.exponentialRampToValueAtTime(.001,t0+dur);
+    o.connect(g); g.connect(master); o.start(t0); o.stop(t0+dur+.02);
+  }
+  function noise(dur,vol,freq,type='lowpass',at=0){
+    if(!ctx||muted) return;
+    const t0=ctx.currentTime+at, s=ctx.createBufferSource(), f=ctx.createBiquadFilter(), g=ctx.createGain();
+    s.buffer=noiseBuf; f.type=type; f.frequency.value=freq;
+    g.gain.setValueAtTime(vol,t0); g.gain.exponentialRampToValueAtTime(.001,t0+dur);
+    s.connect(f); f.connect(g); g.connect(master); s.start(t0); s.stop(t0+dur+.02);
+  }
+  return {
+    init, get muted(){return muted}, set muted(v){muted=v},
+    click(){tone(800,.03,'square',.07)},
+    chop(){noise(.12,.5,350); tone(95,.1,'triangle',.25)},
+    mine(){noise(.07,.35,2200,'highpass'); tone(620,.06,'square',.13); tone(340,.08,'square',.09,0,.02)},
+    swing(){noise(.15,.18,1400,'bandpass')},
+    step(){noise(.05,.11,rand(420,980))},
+    hit(){tone(110,.14,'sine',.45,60); noise(.08,.3,240)},
+    hurt(){tone(260,.22,'sawtooth',.25,120)},
+    pickup(){tone(660,.08,'sine',.2); tone(990,.1,'sine',.16,0,.07)},
+    eat(){noise(.12,.15,900); tone(300,.08,'triangle',.15,240)},
+    drink(){for(let i=0;i<3;i++) tone(380+i*70,.07,'sine',.15,320,i*.09)},
+    craft(){tone(392,.12,'triangle',.2); tone(523,.14,'triangle',.2,0,.08); tone(659,.18,'triangle',.18,0,.16)},
+    smelt(){noise(.25,.2,600); tone(180,.2,'sine',.18,90,.1)},
+    place(){tone(140,.12,'sine',.35,80); noise(.1,.25,300)},
+    level(){[523,659,784,1046].forEach((f,i)=>tone(f,.14,'triangle',.2,0,i*.09))},
+    growl(){tone(90,.5,'sawtooth',.2,60); tone(60,.4,'sawtooth',.14,45,.15)},
+    howl(){tone(420,.5,'sine',.18,650); tone(650,.7,'sine',.14,380,.45)},
+    dawn(){tone(660,.3,'sine',.14,880)},
+    die(){tone(200,.5,'sawtooth',.28,50)},
+  };
+})();
+
+/* ============================================================
+   ۵) صحنه، دوربین، نور
+============================================================ */
+const scene = new THREE.Scene();
+const skyC = new THREE.Color(0x8fc3e8);
+scene.background = skyC;
+scene.fog = new THREE.FogExp2(0x8fc3e8, .008);
+const SKY={ day:new THREE.Color(0x8fc3e8),
+            dusk:new THREE.Color(0xe9824f),
+            night:new THREE.Color(0x0a1018) };
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, .1, 300);
+const renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch?1.75:2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.25;
+renderer.domElement.className = 'game';
+document.body.prepend(renderer.domElement);
+
+const amb  = new THREE.AmbientLight(0xffffff, .25); scene.add(amb);
+const hemi = new THREE.HemisphereLight(0xbfd8ff, 0x3a3126, .6); scene.add(hemi);
+const sun  = new THREE.DirectionalLight(0xffffff, 2.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(isTouch?1024:2048, isTouch?1024:2048);
+sun.shadow.camera.near=.5; sun.shadow.camera.far=130;
+sun.shadow.camera.left=-38; sun.shadow.camera.right=38;
+sun.shadow.camera.top=38; sun.shadow.camera.bottom=-38;
+sun.shadow.bias=-.0005;
+scene.add(sun); scene.add(sun.target);
+const moon = new THREE.DirectionalLight(0x8fa5d9, 0);
+moon.position.set(-30,40,-20); scene.add(moon);
+
+/* ---------- زمین ---------- */
+{
+  const c=document.createElement('canvas');
+  c.width=c.height=512;
+  const x=c.getContext('2d');
+  x.fillStyle='#4a8a4d';
+  x.fillRect(0,0,512,512);
+  for(let i=0;i<2000;i++){
+    x.fillStyle = Math.random()<.5 ? 'rgba(25,60,30,.4)' : 'rgba(130,180,120,.3)';
+    x.fillRect(Math.random()*512, Math.random()*512, 3, 3);
+  }
+  for(let i=0;i<80;i++){
+    x.fillStyle = `rgba(${90+Math.random()*40},${60+Math.random()*30},${40+Math.random()*20},.35)`;
+    x.fillRect(Math.random()*512, Math.random()*512, 4+Math.random()*8, 4+Math.random()*8);
+  }
+  x.strokeStyle='rgba(255,255,255,.02)';
+  for(let i=0;i<512;i+=64){
+    x.beginPath();x.moveTo(i,0);x.lineTo(i,512);x.stroke();
+    x.beginPath();x.moveTo(0,i);x.lineTo(512,i);x.stroke();
+  }
+  const tex=new THREE.CanvasTexture(c);
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  tex.repeat.set(12,12);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(CFG.world,CFG.world),
+    new THREE.MeshStandardMaterial({map:tex,bumpMap:tex,bumpScale:.08,roughness:.95}));
+  ground.rotation.x=-Math.PI/2;
+  ground.receiveShadow=true;
+  scene.add(ground);
+}
+
+/* ---------- دریاچه ---------- */
+{
+  const sand=new THREE.Mesh(new THREE.RingGeometry(LAKE.r-.2,LAKE.r+1.3,28),
+    new THREE.MeshStandardMaterial({color:0xc2a36b,roughness:1}));
+  sand.rotation.x=-Math.PI/2; sand.position.set(LAKE.x,.015,LAKE.z); scene.add(sand);
+  const water=new THREE.Mesh(new THREE.CircleGeometry(LAKE.r,32),
+    new THREE.MeshStandardMaterial({color:0x2c6f8f,roughness:.15,metalness:.6,transparent:true,opacity:.88}));
+  water.rotation.x=-Math.PI/2; water.position.set(LAKE.x,.04,LAKE.z); scene.add(water);
+}
+const ripples=[];
+for(let i=0;i<2;i++){
+  const r=new THREE.Mesh(new THREE.RingGeometry(.6,.72,24),
+    new THREE.MeshBasicMaterial({color:0x9fd8f0,transparent:true,opacity:.5,depthWrite:false}));
+  r.rotation.x=-Math.PI/2; r.position.set(LAKE.x,.05,LAKE.z); scene.add(r); ripples.push(r);
+}
+
+/* ---------- ستاره‌ها، خورشید و ماه ---------- */
+const stars=(()=>{
+  const n=isTouch?200:320, pos=new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    const a=Math.random()*TAU, e=Math.acos(rand(.15,1)), r=118;
+    pos[i*3]=Math.cos(a)*Math.sin(e)*r;
+    pos[i*3+1]=Math.cos(e)*r;
+    pos[i*3+2]=Math.sin(a)*Math.sin(e)*r;
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const m=new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:1.1,transparent:true,opacity:0,fog:false,depthWrite:false}));
+  scene.add(m); return m;
+})();
+const sunMesh=new THREE.Mesh(new THREE.SphereGeometry(4,12,10),
+  new THREE.MeshBasicMaterial({color:0xffeebb,fog:false})); scene.add(sunMesh);
+const moonMesh=new THREE.Mesh(new THREE.SphereGeometry(2.4,12,10),
+  new THREE.MeshBasicMaterial({color:0xdde6ff,fog:false})); scene.add(moonMesh);
+
+/* ---------- ابرها ---------- */
+const clouds=[];
+{
+  const cm=new THREE.MeshStandardMaterial({color:0xf4f7fa,roughness:1,transparent:true,opacity:.85,flatShading:true});
+  const cg=new THREE.SphereGeometry(1,7,5);
+  for(let i=0;i<7;i++){
+    const g=new THREE.Group();
+    for(let j=0;j<4;j++){
+      const s=new THREE.Mesh(cg,cm);
+      s.position.set(rand(-3,3),rand(-.5,.5),rand(-1.5,1.5));
+      s.scale.set(rand(1.6,3),rand(.7,1.1),rand(1.2,2)); g.add(s);
+    }
+    g.position.set(rand(-40,40),rand(17,24),rand(-30,30));
+    scene.add(g); clouds.push(g);
+  }
+}
+
+/* ============================================================
+   ۶) شخصیت بازیکن
+============================================================ */
+const player = new THREE.Group();
+const PP = {};
+const toolMeshes = {};
+{
+  const skin =new THREE.MeshStandardMaterial({color:0xE8B08A,roughness:.7});
+  const shirt=new THREE.MeshStandardMaterial({color:0x2f7d6b,roughness:.8});
+  const pants=new THREE.MeshStandardMaterial({color:0x4a4a55,roughness:.9});
+  const hairM=new THREE.MeshStandardMaterial({color:0x3a2a1c,roughness:.9});
+
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.3,.5,4,8),shirt);
+  body.position.y=.85; body.castShadow=true; player.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.24,10,8),skin);
+  head.position.y=1.42; head.castShadow=true; player.add(head); PP.head=head;
+
+  const eyeG=new THREE.SphereGeometry(.035,6,5), eyeM=new THREE.MeshBasicMaterial({color:0x222226});
+  [[-.09],[ .09]].forEach(([ex])=>{
+    const e=new THREE.Mesh(eyeG,eyeM); e.position.set(ex,1.47,.2); player.add(e);
+  });
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(.255,8,6,0,TAU,0,Math.PI/2),hairM);
+  hair.position.y=1.43; player.add(hair); PP.hair=hair;
+  const helmet=new THREE.Mesh(new THREE.SphereGeometry(.29,10,8,0,TAU,0,Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0xf5822b,roughness:.4}));
+  helmet.position.y=1.45; helmet.scale.y=.75; helmet.visible=false; player.add(helmet); PP.helmet=helmet;
+
+  const armGeo=new THREE.BoxGeometry(.13,.52,.13);
+  const mkArm=(sx)=>{
+    const g=new THREE.Group(); g.position.set(sx,1.28,0);
+    const m=new THREE.Mesh(armGeo,shirt); m.position.y=-.26; m.castShadow=true; g.add(m);
+    player.add(g); return g;
+  };
+  PP.armL=mkArm(-.40); PP.armR=mkArm(.40);
+  const hand=new THREE.Group(); hand.position.set(0,-.5,.05); hand.rotation.x=-1.25; PP.armR.add(hand);
+
+  const legGeo=new THREE.BoxGeometry(.15,.56,.15);
+  const mkLeg=(sx)=>{
+    const g=new THREE.Group(); g.position.set(sx,.62,0);
+    const m=new THREE.Mesh(legGeo,pants); m.position.y=-.28; m.castShadow=true; g.add(m);
+    player.add(g); return g;
+  };
+  PP.legL=mkLeg(-.14); PP.legR=mkLeg(.14);
+
+  /* ابزارها یک‌بار ساخته می‌شوند و فقط visible می‌شوند */
+  const woodM=new THREE.MeshStandardMaterial({color:0x7a5230,roughness:.85});
+  const metM =new THREE.MeshStandardMaterial({color:0x9aa5ad,metalness:.6,roughness:.35});
+  const ironM=new THREE.MeshStandardMaterial({color:0xd8dee6,metalness:.75,roughness:.25});
+  const darkM=new THREE.MeshStandardMaterial({color:0x4e342e,roughness:.7});
+  function axe(){
+    const g=new THREE.Group();
+    const h=new THREE.Mesh(new THREE.BoxGeometry(.05,.52,.05),woodM); h.position.y=.26; g.add(h);
+    const b=new THREE.Mesh(new THREE.BoxGeometry(.2,.1,.05),metM); b.position.set(.09,.46,0); g.add(b);
+    return g;
+  }
+  function pickaxe(){
+    const g=new THREE.Group();
+    const h=new THREE.Mesh(new THREE.BoxGeometry(.05,.56,.05),woodM); h.position.y=.28; g.add(h);
+    const c1=new THREE.Mesh(new THREE.ConeGeometry(.06,.26,4),metM);
+    c1.position.set(.13,.5,0); c1.rotation.z=-Math.PI/2; g.add(c1);
+    const c2=c1.clone(); c2.position.x=-.13; c2.rotation.z=Math.PI/2; g.add(c2);
+    return g;
+  }
+  function sword(mat,len){
+    const g=new THREE.Group();
+    const grip=new THREE.Mesh(new THREE.BoxGeometry(.05,.16,.05),darkM); grip.position.y=.18; g.add(grip);
+    const guard=new THREE.Mesh(new THREE.BoxGeometry(.14,.03,.06),darkM); guard.position.y=.28; g.add(guard);
+    const blade=new THREE.Mesh(new THREE.BoxGeometry(.045,len,.018),mat); blade.position.y=.28+len/2; g.add(blade);
+    return g;
+  }
+  function bow(){
+    const g=new THREE.Group();
+    const limb=new THREE.Mesh(new THREE.TorusGeometry(.25,.02,6,12,Math.PI),woodM);
+    limb.position.y=.3; g.add(limb);
+    const str=new THREE.Mesh(new THREE.BoxGeometry(.5,.014,.014),darkM);
+    str.position.y=.3; g.add(str);
+    return g;
+  }
+  toolMeshes.axe=axe(); toolMeshes.pickaxe=pickaxe();
+  toolMeshes.sword=sword(metM,.42); toolMeshes.ironSword=sword(ironM,.52);
+  toolMeshes.bow=bow();
+  for(const k in toolMeshes){ toolMeshes[k].visible=false; hand.add(toolMeshes[k]); }
+}
+player.position.set(0,0,0);
+scene.add(player);
+
+/* حلقه‌ی تمرکز روی هدف قابل‌تعامل */
+const focusRing=new THREE.Mesh(
+  new THREE.RingGeometry(.55,.66,26),
+  new THREE.MeshBasicMaterial({color:0xf2c14e,transparent:true,opacity:.5,depthWrite:false}));
+focusRing.rotation.x=-Math.PI/2; focusRing.visible=false; scene.add(focusRing);
+
+/* ============================================================
+   ۷) تولید دنیا
+============================================================ */
+const MAT = {
+  trunk:new THREE.MeshStandardMaterial({color:0x6b4a2f,roughness:.95}),
+  leaves:[
+    new THREE.MeshStandardMaterial({color:0x2e6b2e,roughness:.9}),
+    new THREE.MeshStandardMaterial({color:0x3a7a34,roughness:.9}),
+    new THREE.MeshStandardMaterial({color:0x275c2b,roughness:.9}),
+  ],
+  stone:new THREE.MeshStandardMaterial({color:0x8d949c,roughness:.95,metalness:.05}),
+  bush :new THREE.MeshStandardMaterial({color:0x3e7c3a,roughness:.9}),
+  berry:new THREE.MeshStandardMaterial({color:0xc62828,roughness:.6}),
+  woodB:new THREE.MeshStandardMaterial({color:0x8D6E63,roughness:.85}),
+  woodD:new THREE.MeshStandardMaterial({color:0x5D4037,roughness:.9}),
+  stoneB:new THREE.MeshStandardMaterial({color:0x78838d,roughness:.95}),
+  metal:new THREE.MeshStandardMaterial({color:0x9aa5ad,metalness:.5,roughness:.4}),
+  gold :new THREE.MeshStandardMaterial({color:0xFFD54F,metalness:.8,roughness:.25}),
+};
+const GEO = {
+  trunk:new THREE.CylinderGeometry(.14,.2,1.6,6),
+  leaf :new THREE.SphereGeometry(1,6,5),
+  rock :new THREE.DodecahedronGeometry(.4,0),
+  bush :new THREE.SphereGeometry(.42,7,5),
+  berry:new THREE.SphereGeometry(.07,5,4),
+  stoneS:new THREE.SphereGeometry(.09,5,4),
+};
+const nodes=[], colliders=[], respawnQueue=[];
+
+function makeNode(kind,x,z){
+  let mesh;
+  if(kind==='tree'){
+    mesh=new THREE.Group();
+    const t=new THREE.Mesh(GEO.trunk,MAT.trunk); t.position.y=.8; t.castShadow=true; mesh.add(t);
+    const lm=MAT.leaves[(Math.random()*3)|0];
+    for(let i=0;i<4;i++){
+      const l=new THREE.Mesh(GEO.leaf,lm);
+      l.position.set(rand(-.35,.35),1.55+i*.32+rand(0,.15),rand(-.35,.35));
+      l.scale.setScalar(rand(.55,.85)); l.castShadow=true; mesh.add(l);
+    }
+    mesh.scale.setScalar(rand(.85,1.25));
+  }else if(kind==='rock'){
+    mesh=new THREE.Mesh(GEO.rock,MAT.stone);
+    const s=rand(.8,1.5);
+    mesh.scale.setScalar(s); mesh.position.y=.2*s; mesh.castShadow=true;
+    mesh.rotation.set(rand(0,3),rand(0,3),0);
+  }else{
+    mesh=new THREE.Group();
+    const b=new THREE.Mesh(GEO.bush,MAT.bush);
+    b.scale.set(1,.75,1); b.position.y=.3; b.castShadow=true; mesh.add(b);
+    for(let i=0;i<4;i++){
+      const be=new THREE.Mesh(GEO.berry,MAT.berry);
+      const a=rand(0,TAU);
+      be.position.set(Math.cos(a)*.32,.35+rand(0,.15),Math.sin(a)*.32);
+      mesh.add(be);
+    }
+  }
+  mesh.position.set(x, kind==='rock'?mesh.position.y:0, z);
+  mesh.rotation.y=rand(0,TAU);
+  scene.add(mesh);
+  const col={x,z,r:kind==='tree'?.5:kind==='rock'?.55:.4};
+  colliders.push(col);
+  nodes.push({kind,mesh,hp:NODE_HP[kind],alive:true,col,base:mesh.scale.x});
+}
+
+(function populate(){
+  const N = isTouch ? {tree:34,rock:24,bush:12} : {tree:46,rock:32,bush:18};
+  const scatter=(count,kind)=>{
+    let placed=0,guard=0;
+    while(placed<count&&guard++<count*40){
+      const x=rand(-B,B), z=rand(-B,B);
+      if(Math.hypot(x,z)<3.5) continue;
+      if(Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r+2.2) continue;
+      if(nodes.some(n=>Math.hypot(n.mesh.position.x-x,n.mesh.position.z-z)<2.1)) continue;
+      makeNode(kind,x,z); placed++;
+    }
+  };
+  scatter(N.tree,'tree'); scatter(N.rock,'rock'); scatter(N.bush,'bush');
+})();
+
+function resolveCollisions(pos,r){
+  for(const c of colliders){
+    const dx=pos.x-c.x, dz=pos.z-c.z, d=Math.hypot(dx,dz), min=r+c.r;
+    if(d<min&&d>.001){
+      const p=(min-d)/d;
+      pos.x+=dx*p; pos.z+=dz*p;
+    }
+  }
+  pos.x=clamp(pos.x,-B,B);
+  pos.z=clamp(pos.z,-B,B);
+}
+
+/* ============================================================
+   ۸) سازه‌ها
+============================================================ */
+const structures=[];
+function buildCampfire(x,z){
+  const g=new THREE.Group();
+  for(let i=0;i<7;i++){
+    const a=(i/7)*TAU, s=new THREE.Mesh(GEO.stoneS,MAT.stoneB);
+    s.position.set(Math.cos(a)*.3,.05,Math.sin(a)*.3); g.add(s);
+  }
+  for(let i=0;i<3;i++){
+    const l=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.5,5),MAT.woodD);
+    l.rotation.z=Math.PI/2.4; l.rotation.y=i*2.1; l.position.y=.1; g.add(l);
+  }
+  const flameGroup=new THREE.Group();
+  const f1=new THREE.Mesh(new THREE.ConeGeometry(.15,.42,6),
+    new THREE.MeshBasicMaterial({color:0xff9800}));
+  f1.position.y=.24; flameGroup.add(f1);
+  const f2=new THREE.Mesh(new THREE.ConeGeometry(.23,.58,6),
+    new THREE.MeshBasicMaterial({color:0xffc23d,transparent:true,opacity:.55}));
+  f2.position.y=.3; flameGroup.add(f2);
+  g.add(flameGroup);
+  const light=new THREE.PointLight(0xff9040,1.8,9,2);
+  light.position.y=.7; g.add(light);
+  /* نوار سوخت روی آتش‌گاه */
+  const fBg=new THREE.Mesh(new THREE.PlaneGeometry(.7,.08),
+    new THREE.MeshBasicMaterial({color:0x10151f,transparent:true,opacity:.6,depthWrite:false}));
+  const fFg=new THREE.Mesh(new THREE.PlaneGeometry(.7,.06),
+    new THREE.MeshBasicMaterial({color:0xffb300,depthWrite:false}));
+  fFg.position.z=.002;
+  const fuelBar=new THREE.Group(); fuelBar.add(fBg); fuelBar.add(fFg);
+  fuelBar.position.y=.85; g.add(fuelBar);
+  g.userData={kind:'campfire',fuel:45,light,flameGroup,flames:[f1,f2],
+              fuelBar:{g:fuelBar,fg:fFg,w:.7}};
+  g.position.set(x,0,z); scene.add(g); return g;
+}
+function buildFurnace(x,z){
+  const g=new THREE.Group();
+  const b=new THREE.Mesh(new THREE.BoxGeometry(.6,.6,.6),MAT.stoneB);
+  b.position.y=.3; b.castShadow=true; g.add(b);
+  const ch=new THREE.Mesh(new THREE.CylinderGeometry(.09,.11,.3,6),MAT.stoneB);
+  ch.position.y=.72; g.add(ch);
+  const mouth=new THREE.Mesh(new THREE.PlaneGeometry(.26,.2),
+    new THREE.MeshBasicMaterial({color:0xff6d00}));
+  mouth.position.set(0,.26,.305); g.add(mouth);
+  g.userData={kind:'furnace'};
+  g.position.set(x,0,z); scene.add(g); return g;
+}
+function buildShelter(x,z){
+  const g=new THREE.Group();
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(1.7,1.7),MAT.woodD);
+  floor.rotation.x=-Math.PI/2; floor.position.y=.04; floor.receiveShadow=true; g.add(floor);
+  const wall=(w,px,pz,ry)=>{
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,.75,.06),MAT.woodB);
+    m.position.set(px,.4,pz); m.rotation.y=ry; m.castShadow=true; g.add(m);
+  };
+  wall(1.7,0,-.82,0); wall(1.7,-.82,0,Math.PI/2); wall(1.7,.82,0,Math.PI/2);
+  wall(.6,-.55,.82,0); wall(.6,.55,.82,0);
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(1.4,.75,4),MAT.trunk);
+  roof.position.y=1.2; roof.rotation.y=Math.PI/4; roof.castShadow=true; g.add(roof);
+  g.userData={kind:'shelter'};
+  g.position.set(x,0,z); scene.add(g); return g;
+}
+function buildChest(x,z){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.5,.28,.36),MAT.woodD);
+  body.position.y=.14; body.castShadow=true; g.add(body);
+  const lid=new THREE.Mesh(new THREE.BoxGeometry(.5,.06,.36),MAT.woodB);
+  lid.position.y=.31; lid.castShadow=true; g.add(lid);
+  const lock=new THREE.Mesh(new THREE.BoxGeometry(.06,.06,.05),MAT.gold);
+  lock.position.set(0,.29,.19); g.add(lock);
+  g.userData={kind:'chest'};
+  g.position.set(x,0,z); scene.add(g); return g;
+}
+const BUILDERS={campfire:buildCampfire,furnace:buildFurnace,shelter:buildShelter,chest:buildChest};
+
+function addStructure(id,x,z,pop=true){
+  const m=BUILDERS[id](x,z);
+  structures.push(m);
+  colliders.push({x,z,r:STRUCT_R[id]||.5});
+  if(pop){
+    m.scale.setScalar(.01);
+    tween(.45,p=>m.scale.setScalar(Math.max(.01,easeOutBack(p))));
+    spawnBurst(x,.3,z,0xd9a441,10,1.4);
+  }
+  return m;
+}
+function nearLitFire(x,z,r=7){
+  return structures.some(s=>s.userData.kind==='campfire'&&s.userData.fuel>0&&
+    Math.hypot(s.position.x-x,s.position.z-z)<r);
+}
+function nearestLitFire(x,z){
+  let best=null,bd=1e9;
+  for(const s of structures){
+    if(s.userData.kind!=='campfire'||s.userData.fuel<=0) continue;
+    const d=Math.hypot(s.position.x-x,s.position.z-z);
+    if(d<bd){bd=d;best=s;}
+  }
+  return best;
+}
+function setFuelBar(f){
+  const u=f.userData; if(!u.fuelBar) return;
+  const pct=clamp(u.fuel/CFG.fuelMax,0,1);
+  u.fuelBar.fg.scale.x=Math.max(.001,pct);
+  u.fuelBar.fg.position.x=-(1-pct)*u.fuelBar.w/2;
+  u.fuelBar.fg.material.color.setHex(u.fuel<CFG.fuelMax*.15?0xef5350:0xffb300);
+}
+function refuelFire(f){
+  const u=f.userData;
+  if(state.inv.wood<=0){ msg('چوب نداری که سوخت بدهی.'); return; }
+  if(u.fuel>=CFG.fuelMax-1){ msg('آتش پر است.'); return; }
+  state.inv.wood--;
+  u.fuel=Math.min(u.fuel+20,CFG.fuelMax);
+  u.flameGroup.visible=true;
+  setFuelBar(f);
+  Sfx.place();
+  refreshInventory();
+  msg('آتش تقویت شد (+۲۰ سوخت).');
+}
+
+/* ============================================================
+   ۹) دشمن‌ها و شکار (گرگ، زامبی، گوزن)
+============================================================ */
+const enemies=[];
+function makeHpBar(w=.8){
+  const g=new THREE.Group();
+  const bg=new THREE.Mesh(new THREE.PlaneGeometry(w,.09),
+    new THREE.MeshBasicMaterial({color:0x10151f,transparent:true,opacity:.75}));
+  const fg=new THREE.Mesh(new THREE.PlaneGeometry(w,.07),
+    new THREE.MeshBasicMaterial({color:0xff5252}));
+  fg.position.z=.002; g.add(bg); g.add(fg); g.userData={fg,w};
+  scene.add(g); return g;
+}
+function setHpBar(e){
+  const f=clamp(e.hp/e.maxHp,0,1), u=e.bar.userData;
+  u.fg.scale.x=Math.max(.001,f);
+  u.fg.position.x=-(1-f)*u.w/2;
+}
+function buildWolf(){
+  const g=new THREE.Group();
+  const bodyMat=new THREE.MeshStandardMaterial({color:0x546e7a,roughness:.9});
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.45,.42,.95),bodyMat);
+  body.position.y=.55; body.castShadow=true; g.add(body);
+  const head=new THREE.Mesh(new THREE.BoxGeometry(.32,.3,.32),bodyMat);
+  head.position.set(0,.72,.6); head.castShadow=true; g.add(head);
+  const snout=new THREE.Mesh(new THREE.BoxGeometry(.14,.12,.16),
+    new THREE.MeshStandardMaterial({color:0x37474f,roughness:.9}));
+  snout.position.set(0,.66,.8); g.add(snout);
+  const eyeG=new THREE.SphereGeometry(.035,5,4), eyeM=new THREE.MeshBasicMaterial({color:0xff5544});
+  [[-.09],[ .09]].forEach(([ex])=>{
+    const e=new THREE.Mesh(eyeG,eyeM); e.position.set(ex,.78,.77); g.add(e);
+  });
+  const tail=new THREE.Mesh(new THREE.BoxGeometry(.07,.07,.4),bodyMat);
+  tail.position.set(0,.62,-.62); tail.rotation.x=.5; g.add(tail);
+  const legs=[], legG=new THREE.BoxGeometry(.09,.5,.09);
+  [[-.16,.32],[.16,.32],[-.16,-.32],[.16,-.32]].forEach(([lx,lz])=>{
+    const L=new THREE.Group(); L.position.set(lx,.52,lz);
+    const m=new THREE.Mesh(legG,bodyMat); m.position.y=-.25; L.add(m); g.add(L); legs.push(L);
+  });
+  return {mesh:g,legs,bodyMat,hp:45,speed:3.6,dmg:12,atkCd:1.3,name:'گرگ',barH:1.25};
+}
+function buildZombie(){
+  const g=new THREE.Group();
+  const bodyMat=new THREE.MeshStandardMaterial({color:0x7a9450,roughness:.9});
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.28,.5,4,8),bodyMat);
+  body.position.y=.85; body.castShadow=true; g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.23,8,7),
+    new THREE.MeshStandardMaterial({color:0x8ba25c,roughness:.85}));
+  head.position.y=1.42; head.castShadow=true; g.add(head);
+  const eyeG=new THREE.SphereGeometry(.04,5,4), eyeM=new THREE.MeshBasicMaterial({color:0x9c2b1f});
+  [[-.08],[ .08]].forEach(([ex])=>{
+    const e=new THREE.Mesh(eyeG,eyeM); e.position.set(ex,1.46,.19); g.add(e);
+  });
+  const armG=new THREE.BoxGeometry(.12,.5,.12);
+  [[-.38],[ .38]].forEach(([ax])=>{
+    const A=new THREE.Group(); A.position.set(ax,1.2,0); A.rotation.x=-1.25;
+    const m=new THREE.Mesh(armG,bodyMat); m.position.y=-.24; A.add(m); g.add(A);
+  });
+  const legs=[], legG2=new THREE.BoxGeometry(.14,.55,.14);
+  [[-.13],[ .13]].forEach(([lx])=>{
+    const L=new THREE.Group(); L.position.set(lx,.62,0);
+    const m=new THREE.Mesh(legG2,bodyMat); m.position.y=-.27; L.add(m); g.add(L); legs.push(L);
+  });
+  return {mesh:g,legs,bodyMat,hp:80,speed:1.7,dmg:18,atkCd:1.6,name:'زامبی',barH:1.95};
+}
+function buildDeer(){
+  const g=new THREE.Group();
+  const bodyMat=new THREE.MeshStandardMaterial({color:0x9c7a54,roughness:.9});
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.38,.4,.85),bodyMat);
+  body.position.y=.8; body.castShadow=true; g.add(body);
+  const head=new THREE.Mesh(new THREE.BoxGeometry(.24,.24,.3),bodyMat);
+  head.position.set(0,1.1,.55); head.castShadow=true; g.add(head);
+  const neck=new THREE.Mesh(new THREE.BoxGeometry(.14,.34,.14),bodyMat);
+  neck.position.set(0,.98,.42); g.add(neck);
+  const earG=new THREE.ConeGeometry(.05,.15,4);
+  [[-.09,.35],[.09,-.35]].forEach(([ex,rz])=>{
+    const ear=new THREE.Mesh(earG,bodyMat);
+    ear.position.set(ex,1.24,.5); ear.rotation.z=rz; g.add(ear);
+  });
+  const eyeG=new THREE.SphereGeometry(.03,5,4), eyeM=new THREE.MeshBasicMaterial({color:0x222226});
+  [[-.08],[ .08]].forEach(([ex])=>{
+    const e=new THREE.Mesh(eyeG,eyeM); e.position.set(ex,1.13,.7); g.add(e);
+  });
+  const tail=new THREE.Mesh(new THREE.SphereGeometry(.07,5,4),
+    new THREE.MeshStandardMaterial({color:0xd7ccc8,roughness:.9}));
+  tail.position.set(0,.86,-.46); g.add(tail);
+  const legs=[], legG=new THREE.BoxGeometry(.08,.62,.08);
+  [[-.13,.3],[.13,.3],[-.13,-.3],[.13,-.3]].forEach(([lx,lz])=>{
+    const L=new THREE.Group(); L.position.set(lx,.62,lz);
+    const m=new THREE.Mesh(legG,bodyMat); m.position.y=-.31; L.add(m); g.add(L); legs.push(L);
+  });
+  return {mesh:g,legs,bodyMat,hp:30,speed:5,dmg:0,atkCd:99,name:'گوزن',barH:1.5,prey:true};
+}
+function spawnEnemy(type){
+  let x=0,z=0,tries=0;
+  do{
+    const a=Math.random()*TAU, r=rand(16,24);
+    x=player.position.x+Math.sin(a)*r; z=player.position.z+Math.cos(a)*r;
+  }while((Math.abs(x)>B-2||Math.abs(z)>B-2||nearLitFire(x,z,8)||Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r+1)&&++tries<40);
+  if(tries>=40) return;
+  const info=type==='wolf'?buildWolf():buildZombie();
+  info.mesh.position.set(x,0,z);
+  scene.add(info.mesh);
+  const bar=makeHpBar(.8); bar.position.set(x,info.barH,z);
+  enemies.push({...info,type,bar,maxHp:info.hp,dir:Math.random()*TAU,wanderT:0,
+    cd:rand(.2,1),growlT:0,flash:0,dying:false,phase:Math.random()*10});
+  Sfx.growl();
+}
+function spawnPrey(){
+  if(enemies.filter(e=>e.prey).length>=3) return;
+  let x=0,z=0,tries=0;
+  do{
+    const a=Math.random()*TAU, r=rand(18,26);
+    x=player.position.x+Math.sin(a)*r; z=player.position.z+Math.cos(a)*r;
+  }while((Math.abs(x)>B-2||Math.abs(z)>B-2||nearLitFire(x,z,6)||
+          Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r+1)&&++tries<40);
+  if(tries>=40) return;
+  const info=buildDeer();
+  info.mesh.position.set(x,0,z);
+  scene.add(info.mesh);
+  const bar=makeHpBar(.6); bar.visible=false;
+  bar.position.set(x,info.barH,z);
+  enemies.push({...info,type:'deer',bar,maxHp:info.hp,dir:Math.random()*TAU,
+    wanderT:0,cd:99,growlT:0,flash:0,dying:false,phase:Math.random()*10,alerted:0});
+}
+function updatePrey(e,dt,now){
+  if(e.flash>0){ e.flash-=dt; if(e.flash<=0) e.bodyMat.emissive.setHex(0); }
+  const dx=e.mesh.position.x-player.position.x, dz=e.mesh.position.z-player.position.z;
+  const d=Math.hypot(dx,dz);
+  let sp=1.1, freq=6, amp=.4;
+  if(d<8||e.alerted>0){                    /* بازیکن نزدیک یا زخمی → فرار */
+    e.alerted=Math.max(0,e.alerted-dt);
+    e.dir=lerpAngle(e.dir,Math.atan2(dx,dz),dt*4);
+    sp=e.speed; freq=14; amp=.7;
+  }else{                                   /* پرسه‌ی آرام */
+    e.wanderT-=dt;
+    if(e.wanderT<=0){ e.dir=Math.random()*TAU; e.wanderT=rand(2,5); }
+  }
+  e.mesh.position.x+=Math.sin(e.dir)*sp*dt;
+  e.mesh.position.z+=Math.cos(e.dir)*sp*dt;
+  resolveCollisions(e.mesh.position,.35);
+  e.mesh.position.x=clamp(e.mesh.position.x,-B+1,B-1);
+  e.mesh.position.z=clamp(e.mesh.position.z,-B+1,B-1);
+  const run=Math.sin(now*freq+e.phase)*amp;
+  e.legs[0].rotation.x=run;  e.legs[3].rotation.x=run;
+  e.legs[1].rotation.x=-run; e.legs[2].rotation.x=-run;
+  e.mesh.rotation.y=e.dir;
+}
+function damageEnemy(e,d){
+  if(e.dying) return;
+  e.hp-=d; e.flash=.12; e.bodyMat.emissive.setHex(0x882222);
+  if(e.prey) e.alerted=6;                 /* ۶ ثانیه فرار بعد از ضربه */
+  setHpBar(e);
+  spawnBurst(e.mesh.position.x,.9,e.mesh.position.z,0xc62828,6,1.6);
+  popup(e.mesh.position,'−'+fa(Math.round(d)),'#ff8a80');
+  if(e.hp<=0) killEnemy(e,true);
+}
+function killEnemy(e,byPlayer){
+  if(e.dying) return;
+  e.dying=true;
+  if(byPlayer){
+    if(e.prey){                            /* شکار گوزن */
+      state.inv.rawMeat += 3;
+      state.stats.xp += 10; state.score += 10;
+      popup(e.mesh.position,'+۳ گوشت خام','#a5d6a7');
+      msg('گوزن شکار شد — ۳ گوشت خام (+۱۰ امتیاز)');
+    }else{
+      const meat=e.type==='wolf'?2:1;
+      state.stats.xp += e.type==='wolf'?12:20;
+      state.score += e.type==='wolf'?15:25;
+      state.inv.rawMeat += meat;
+      if(Math.random()<.25){ state.inv.water++; popup(e.mesh.position,'+۱ قوطی آب','#4fc3f7'); }
+      popup(e.mesh.position,`+${fa(meat)} گوشت خام`,'#ff8a80');
+      msg(`${e.name} از پا درآمد (+${fa(e.type==='wolf'?15:25)} امتیاز)`);
+    }
+    Sfx.die(); checkLevel(); refreshInventory();
+  }
+  spawnBurst(e.mesh.position.x,.8,e.mesh.position.z,0x777777,10,1.2);
+  const mesh=e.mesh, bar=e.bar;
+  enemies.splice(enemies.indexOf(e),1);
+  tween(.7,p=>{
+    mesh.rotation.x=p*1.5; mesh.position.y=-p*.45; bar.position.y=-p*.45+e.barH;
+  },()=>disposeObj(mesh, bar));
+}
+function clearEnemies(keepPrey=false){
+  for(let i=enemies.length-1;i>=0;i--){
+    const e=enemies[i];
+    if(keepPrey&&e.prey) continue;
+    disposeObj(e.mesh, e.bar);
+    enemies.splice(i,1);
+  }
+}
+/* آزادسازی حافظه GPU */
+function disposeObj(...roots){
+  for(const root of roots){
+    scene.remove(root);
+    root.traverse(o=>{
+      if(o.isMesh){
+        if(o.geometry&&o.geometry.dispose) o.geometry.dispose();
+        const ms=Array.isArray(o.material)?o.material:[o.material];
+        ms.forEach(m=>m&&m.dispose&&m.dispose());
+      }
+    });
+  }
+}
+
+/* ============================================================
+   ۹.۵) کمان و تیر
+============================================================ */
+const ARROW_GEO=new THREE.ConeGeometry(.03,.5,4);   /* اشتراکی — dispose نمی‌شود */
+const arrows=[];
+
+function shootArrow(){
+  if(state.inv.bow<=0) return false;
+  if(state.inv.arrow<=0){ msg('تیر نداری — در کارگاه بساز (۲ چوب = ۳ تیر).'); return false; }
+  if(state.stats.energy<CFG.attackEnergy){ msg('انرژی کافی نداری.'); return false; }
+  state.inv.arrow--; state.stats.energy-=CFG.attackEnergy;
+  refreshInventory();
+  const dir=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+  dir.y+=.08; dir.normalize();
+  const m=new THREE.Mesh(ARROW_GEO,MAT.woodD);
+  m.position.copy(player.position); m.position.y=1.35;
+  scene.add(m);
+  arrows.push({mesh:m,vx:dir.x*20,vy:dir.y*20+1.6,vz:dir.z*20,life:2.5});
+  Sfx.swing();
+  return true;
+}
+function updateArrows(dt){
+  for(let i=arrows.length-1;i>=0;i--){
+    const A=arrows[i];
+    A.vy-=9.8*dt;
+    const nx=A.mesh.position.x+A.vx*dt,
+          ny=A.mesh.position.y+A.vy*dt,
+          nz=A.mesh.position.z+A.vz*dt;
+    let hit=null;
+    for(const e of enemies){
+      if(e.dying) continue;
+      if(Math.abs(e.mesh.position.x-nx)<.55&&Math.abs(e.mesh.position.z-nz)<.55&&ny>0&&ny<2.2){ hit=e; break; }
+    }
+    if(hit){
+      damageEnemy(hit, hit.prey?CFG.preyArrowDmg:CFG.arrowDmg);
+      removeArrow(i); continue;
+    }
+    A.mesh.position.set(nx,ny,nz);
+    A.mesh.lookAt(nx+A.vx,ny+A.vy,nz+A.vz);
+    A.mesh.rotateX(Math.PI/2);
+    A.life-=dt;
+    if(A.life<=0||ny<0||Math.abs(nx)>B+2||Math.abs(nz)>B+2) removeArrow(i);
+  }
+}
+function removeArrow(i){
+  scene.remove(arrows[i].mesh);
+  arrows.splice(i,1);
+}
+
+/* ============================================================
+   ۱۰) جلوه‌ها: ذرات، تویین، پاپ‌آپ، پیام
+============================================================ */
+const pool=[]; let pIdx=0;
+{
+  const pg=new THREE.SphereGeometry(.06,5,4);
+  for(let i=0;i<80;i++){
+    const m=new THREE.Mesh(pg,new THREE.MeshBasicMaterial({color:0xffffff}));
+    m.visible=false; scene.add(m);
+    pool.push({m,vx:0,vy:0,vz:0,life:0});
+  }
+}
+function spawnBurst(x,y,z,color,count,speed){
+  for(let i=0;i<count;i++){
+    const p=pool[pIdx]; pIdx=(pIdx+1)%pool.length;
+    p.m.visible=true; p.m.position.set(x,y,z);
+    p.m.material.color.setHex(color);
+    const a=Math.random()*TAU, e=Math.random()*Math.PI;
+    const k=speed*rand(.5,1);
+    p.vx=Math.cos(a)*Math.sin(e)*k;
+    p.vy=Math.abs(Math.cos(e))*k+1.2;
+    p.vz=Math.sin(a)*Math.sin(e)*k;
+    p.life=rand(.4,.8);
+  }
+}
+function updateParticles(dt){
+  for(const p of pool){
+    if(!p.m.visible) continue;
+    p.life-=dt;
+    if(p.life<=0){ p.m.visible=false; continue; }
+    p.vy-=9.8*dt;
+    p.m.position.x+=p.vx*dt; p.m.position.y+=p.vy*dt; p.m.position.z+=p.vz*dt;
+    if(p.m.position.y<0){ p.m.position.y=0; p.vy*=-.3; p.vx*=.7; p.vz*=.7; }
+    p.m.scale.setScalar(Math.max(.05,p.life));
+  }
+}
+const tweens=[];
+function tween(dur,onUpdate,onComplete){
+  tweens.push({t:0,dur,onUpdate,onComplete});
+}
+function updateTweens(dt){
+  for(let i=tweens.length-1;i>=0;i--){
+    const tw=tweens[i];
+    tw.t+=dt;
+    const p=Math.min(1,tw.t/tw.dur);
+    tw.onUpdate(p);
+    if(p>=1){
+      if(tw.onComplete) tw.onComplete();
+      tweens.splice(i,1);
+    }
+  }
+}
+function easeOutBack(p){ const c=1.70158; return 1+(c+1)*Math.pow(p-1,3)+c*Math.pow(p-1,2); }
+
+const wpopPool=[];
+function popup(worldPos,text,color){
+  let el=wpopPool.find(w=>!w.busy);
+  if(!el){
+    el={div:document.createElement('div'),busy:false,wp:new THREE.Vector3(),t:0};
+    el.div.className='wpop';
+    $('popups').appendChild(el.div);
+    wpopPool.push(el);
+  }
+  el.busy=true; el.t=0;
+  el.wp.copy(worldPos); el.wp.y+=1.6;
+  el.div.textContent=text; el.div.style.color=color;
+  el.div.style.display='block';
+}
+function updatePopups(dt){
+  for(const w of wpopPool){
+    if(!w.busy) continue;
+    w.t+=dt;
+    if(w.t>1){ w.busy=false; w.div.style.display='none'; continue; }
+    _v1.copy(w.wp); _v1.y+=w.t*.8;
+    _v1.project(camera);
+    if(_v1.z>1){ w.div.style.display='none'; continue; }
+    w.div.style.display='block';
+    const x=(_v1.x*.5+.5)*innerWidth, y=(-_v1.y*.5+.5)*innerHeight;
+    w.div.style.transform=`translate(-50%,-50%) translate(${x}px,${y}px)`;
+    w.div.style.opacity=String(1-w.t);
+  }
+}
+function msg(text){
+  const box=$('toasts');
+  const el=document.createElement('div');
+  el.className='toast'; el.textContent=text;
+  box.appendChild(el);
+  while(box.children.length>3) box.firstChild.remove();
+  setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),400); },2600);
+}
+
+/* ============================================================
+   ۱۱) UI: کیف، کارگاه، HUD
+============================================================ */
+function refreshInventory(){
+  const grid=$('inv-grid'); grid.innerHTML='';
+  for(const def of INV_DEF){
+    const id=def.id, item=ITEM[id];
+    const cnt=state.inv[id]||0;
+    const el=document.createElement('div');
+    el.className='inv-item'+(cnt?'':' empty')+(state.equipped===id?' equipped':'');
+    el.title=item.n;
+    let dur='';
+    if((id in state.dur)&&cnt>0){
+      const d=state.dur[id]||100;
+      const cls=d>30?'':(d>10?'low':'crit');
+      dur=`<i class="dur"><b class="${cls}" style="width:${d}%"></b></i>`;
+    }
+    el.innerHTML=`<span class="cnt">${fa(cnt)}</span>${dur}
+      <span class="lab">${ic(item.ic,13)}<i>${item.n}</i></span>`;
+    if(cnt>0) el.addEventListener('click',()=>useItem(id));
+    grid.appendChild(el);
+  }
+}
+function updateEquippedTool(){
+  for(const k in toolMeshes){
+    toolMeshes[k].visible=(k===state.equipped&&state.inv[k]>0);
+  }
+  refreshInventory();
+}
+function useItem(id){
+  if(!state.running||state.dead||state.paused||state.sleeping) return;
+  if(state.inv[id]<=0) return;
+  switch(id){
+    case 'axe': case 'pickaxe': case 'sword': case 'ironSword': case 'bow':
+      state.equipped=(state.equipped===id)?null:id;
+      updateEquippedTool();
+      Sfx.click();
+      break;
+    case 'helmet':
+      state.helmetOn=!state.helmetOn;
+      PP.helmet.visible=state.helmetOn;
+      PP.hair.visible=!state.helmetOn;
+      msg(state.helmetOn?'کلاه ایمنی پوشیده شد — ۴۰٪ کاهش آسیب.':'کلاه برداشته شد.');
+      Sfx.click();
+      break;
+    case 'food':
+      if(state.stats.hunger>96){ msg('سیری هستی.'); break; }
+      state.inv.food--;
+      state.stats.hunger=Math.min(100,state.stats.hunger+30);
+      state.stats.health=Math.min(100,state.stats.health+5);
+      Sfx.eat();
+      msg('خوراکی خوردی (+۳۰ سیری).');
+      break;
+    case 'rawMeat':
+      if(!nearLitFire(player.position.x,player.position.z,3.2)){
+        msg('گوشت خام است — کنار آتشِ روشن بپز.');
+        break;
+      }
+      state.inv.rawMeat--;
+      state.inv.food++;
+      Sfx.smelt();
+      msg('گوشت پخته شد (+۱ غذا).');
+      break;
+    case 'water':
+      if(state.stats.thirst>96){ msg('تشنگی نیستی.'); break; }
+      state.inv.water--;
+      state.stats.thirst=Math.min(100,state.stats.thirst+45);
+      Sfx.drink();
+      msg('قوطی آب خوردی (+۴۵ تشنگی).');
+      break;
+    case 'campfire': case 'furnace': case 'shelter': case 'chest':
+      placeStructure(id);
+      break;
+  }
+  refreshInventory(); refreshCraft();
+}
+const CATS={tool:'ابزار',build:'سازها'};
+function refreshCraft(){
+  const list=$('craft-list'); list.innerHTML='';
+  for(const cat in CATS){
+    const h=document.createElement('div');
+    h.className='craft-cat'; h.textContent=CATS[cat];
+    list.appendChild(h);
+    for(const r of RECIPES){
+      if(r.cat!==cat) continue;
+      const can=Object.entries(r.cost).every(([k,v])=>state.inv[k]>=v);
+      const row=document.createElement('button');
+      row.className='craft-row'+(can?'':' off');
+      row.innerHTML=
+        `<span class="cr-ic">${ic(ITEM[r.id].ic,18)}</span>`+
+        `<span class="cr-mid"><b>${ITEM[r.id].n}</b><small>${r.tip}</small>`+
+        `<span class="chips">${Object.entries(r.cost).map(([k,v])=>
+          `<span class="chip${state.inv[k]>=v?'':' lack'}">${ic(ITEM[k].ic,11)}${fa(v)}</span>`).join('')}</span></span>`;
+      row.addEventListener('click',()=>craft(r));
+      list.appendChild(row);
+    }
+  }
+}
+function craft(r){
+  const ok=Object.entries(r.cost).every(([k,v])=>state.inv[k]>=v);
+  if(!ok){ msg('منابع کافی نداری.'); return; }
+  for(const [k,v] of Object.entries(r.cost)) state.inv[k]-=v;
+  state.inv[r.id]+=(r.id==='arrow')?3:1;
+  state.stats.xp+=6; state.score+=3;
+  Sfx.craft();
+  msg(`${ITEM[r.id].n} ساخته شد${r.id==='arrow'?' (۳ عدد)':''}.`);
+  checkLevel();
+  refreshInventory(); refreshCraft();
+  saveGame();
+}
+function placeStructure(id){
+  if(state.inv[id]<=0) return;
+  const fx=Math.sin(player.rotation.y), fz=Math.cos(player.rotation.y);
+  let x=player.position.x+fx*1.9, z=player.position.z+fz*1.9;
+  x=clamp(x,-B+1.2,B-1.2); z=clamp(z,-B+1.2,B-1.2);
+  if(Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r+1.4){ msg('کنار دریاچه جای سازه نیست.'); return; }
+  if(colliders.some(c=>Math.hypot(c.x-x,c.z-z)<1.3)){ msg('اینجا جای کافی نیست.'); return; }
+  state.inv[id]--;
+  addStructure(id,x,z);
+  if(id==='shelter'){ state.respawn={x,z}; msg('سرپناه ساخته شد — نقطه‌ی بازگشت اینجاست.'); }
+  if(id==='chest'){ state.hasChest=true; msg('صندوق ساخته شد — ۷۵٪ منابع هنگام مرگ حفظ می‌شود.'); }
+  Sfx.place();
+  state.score+=5;
+  state.stats.xp+=8;
+  checkLevel();
+  refreshInventory(); refreshCraft();
+  saveGame();
+}
+function toggleCraft(){
+  const p=$('craft-panel');
+  const show=!p.classList.contains('show');
+  p.classList.toggle('show',show);
+  if(show) refreshCraft();
+  Sfx.click();
+}
+function updateHUD(){
+  const s=state.stats;
+  $('health-fill').style.width=clamp(s.health,0,100)+'%';
+  $('health-val').textContent=fa(Math.max(0,Math.round(s.health)));
+  $('energy-fill').style.width=clamp(s.energy,0,100)+'%';
+  $('energy-val').textContent=fa(Math.max(0,Math.round(s.energy)));
+  $('hunger-fill').style.width=clamp(s.hunger,0,100)+'%';
+  $('hunger-val').textContent=fa(Math.max(0,Math.round(s.hunger)));
+  $('thirst-fill').style.width=clamp(s.thirst,0,100)+'%';
+  $('thirst-val').textContent=fa(Math.max(0,Math.round(s.thirst)));
+  $('xp-fill').style.width=clamp(s.xp/xpNeed()*100,0,100)+'%';
+  $('level-val').textContent='سطح '+fa(state.level);
+  $('score-val').textContent=fa(Math.round(state.score));
+}
+function checkLevel(){
+  while(state.stats.xp>=xpNeed()){
+    state.stats.xp-=xpNeed();
+    state.level++;
+    state.stats.health=Math.min(100,state.stats.health+15);
+    state.stats.energy=100;
+    Sfx.level();
+    msg(`سطح ${fa(state.level)}! سلامتی و انرژی بازیابی شد.`);
+  }
+  updateHUD();
+}
+function togglePause(){
+  if(!state.running&&!state.paused) return;
+  state.paused=!state.paused;
+  $('pause-screen').classList.toggle('hidden',!state.paused);
+  Sfx.click();
+}
+function toggleMute(){
+  Sfx.muted=!Sfx.muted;
+  $('mute-btn').innerHTML=ic(Sfx.muted?'volumeOff':'volume',15);
+  $('btn-sound').textContent='صدا: '+(Sfx.muted?'خاموش':'روشن');
+  try{ localStorage.setItem('cb_muted',Sfx.muted?'1':'0'); }catch(e){}
+}
+
+/* ============================================================
+   ۱۲) تعامل: برداشت، حمله، خواب، آسیب، مرگ
+============================================================ */
+function nearestNode(R=CFG.interactR){
+  let best=null,bd=1e9;
+  for(const n of nodes){
+    if(!n.alive) continue;
+    const d=Math.hypot(n.mesh.position.x-player.position.x,n.mesh.position.z-player.position.z)-.5;
+    if(d<R&&d<bd){ bd=d; best=n; }
+  }
+  return best;
+}
+function nearestStructure(R=CFG.interactR){
+  let best=null,bd=1e9;
+  for(const s of structures){
+    const d=Math.hypot(s.position.x-player.position.x,s.position.z-player.position.z)-.6;
+    if(d<R&&d<bd){ bd=d; best=s; }
+  }
+  return best;
+}
+function interact(){
+  if(!state.running||state.dead||state.sleeping||state.paused) return;
+  Sfx.click();
+  const s=nearestStructure();
+  if(s){
+    const k=s.userData.kind;
+    if(k==='campfire'){ refuelFire(s); return; }
+    if(k==='furnace'){ smelt(); return; }
+    if(k==='shelter'){ trySleep(); return; }
+    if(k==='chest'){ msg('صندوق فعال است — منابعت را هنگام مرگ حفظ می‌کند.'); return; }
+  }
+  if(Math.hypot(player.position.x-LAKE.x,player.position.z-LAKE.z)<LAKE.r+1.3){
+    state.stats.thirst=Math.min(100,state.stats.thirst+40);
+    Sfx.drink(); msg('آب نوشیدی (+۴۰ تشنگی).');
+    return;
+  }
+  const n=nearestNode();
+  if(n){ harvest(n); return; }
+  msg('چیزی برای تعامل نزدیک نیست.');
+}
+function harvest(n){
+  if(!n.alive) return;
+  if(state.stats.energy<CFG.harvestEnergy){ msg('خسته‌ای — کمی استراحت کن.'); return; }
+  state.stats.energy-=CFG.harvestEnergy;
+  swingAnim();
+  n.hp--;
+  let gain=1, item='wood';
+  if(n.kind==='tree'){ item='wood'; gain=state.inv.axe>0?3:1; Sfx.chop(); }
+  else if(n.kind==='rock'){ item='stone'; gain=state.inv.pickaxe>0?3:1; Sfx.mine(); }
+  else { item='food'; gain=2; Sfx.pickup(); }
+  state.inv[item]+=gain;
+  state.stats.xp+=2; state.score+=1;
+  popup(n.mesh.position,`+${fa(gain)} ${ITEM[item].n}`,'#ffd54f');
+  spawnBurst(n.mesh.position.x,n.kind==='tree'?1.3:.4,n.mesh.position.z,
+    n.kind==='tree'?0x8d6e63:(n.kind==='rock'?0x9e9e9e:0x66bb6a),6,1.4);
+  const bs=n.base;
+  tween(.18,p=>n.mesh.scale.setScalar(bs*(1+Math.sin(p*Math.PI)*.1)));
+  if(n.kind==='tree'&&state.inv.axe>0) wearTool('axe');
+  if(n.kind==='rock'&&state.inv.pickaxe>0) wearTool('pickaxe');
+  if(state.inv.wood>=3&&!state.tipTool){
+    state.tipTool=true;
+    msg('۳ چوب داری — با C کارگاه را باز کن و تبر بساز.');
+  }
+  if(n.hp<=0){
+    n.alive=false;
+    n.mesh.visible=false;
+    scene.remove(n.mesh);
+    const ci=colliders.indexOf(n.col);
+    if(ci>-1) colliders.splice(ci,1);
+    state.inv[item]+=1;
+    respawnQueue.push({node:n,at:clock.elapsed+rand(40,90)});
+    spawnBurst(n.mesh.position.x,.6,n.mesh.position.z,
+      n.kind==='tree'?0x2e6b2e:(n.kind==='rock'?0x8d949c:0x3e7c3a),10,1.6);
+  }
+  checkLevel();
+  refreshInventory(); refreshCraft();
+}
+let atkAnim=0, atkCdT=0, shake=0, hitstop=0;
+function swingAnim(){
+  atkAnim=.35;
+  Sfx.swing();
+}
+function attack(){
+  if(!state.running||state.dead||state.sleeping||state.paused) return;
+  if(atkCdT>0) return;
+  if(state.equipped==='bow'&&state.inv.bow>0){
+    if(shootArrow()){ atkCdT=.5; swingAnim(); }
+    return;
+  }
+  if(state.stats.energy<CFG.attackEnergy){ msg('انرژی کافی نداری.'); return; }
+  state.stats.energy-=CFG.attackEnergy;
+  atkCdT=.45;
+  swingAnim();
+  let best=null,bd=1e9;
+  for(const e of enemies){
+    if(e.dying) continue;
+    const dx=e.mesh.position.x-player.position.x, dz=e.mesh.position.z-player.position.z;
+    const d=Math.hypot(dx,dz);
+    if(d>2.3) continue;
+    const ang=Math.atan2(dx,dz);
+    const diff=Math.abs(((ang-player.rotation.y+Math.PI)%TAU+TAU)%TAU-Math.PI);
+    if(diff<1.1&&d<bd){ best=e; bd=d; }
+  }
+  if(best){
+    const dmg=state.equipped==='ironSword'?65:(state.equipped==='sword'?35:12);
+    damageEnemy(best,dmg);
+    if(state.equipped==='sword'||state.equipped==='ironSword') wearTool(state.equipped);
+    hitstop=.06;
+    Sfx.hit();
+  }
+}
+function trySleep(){
+  if(!state.isNight){ msg('شب که شود می‌توانی بخوابی.'); return; }
+  state.sleeping=true;
+  $('sleep-fade').classList.add('show');
+  setTimeout(()=>{
+    state.stats.energy=100;
+    state.stats.hunger=clamp(state.stats.hunger-15,5,100);
+    state.stats.thirst=clamp(state.stats.thirst-15,5,100);
+    state.stats.health=clamp(state.stats.health+15,0,100);
+    state.t=CFG.nightSec-.01;
+    state.sleeping=false;
+    $('sleep-fade').classList.remove('show');
+    msg('خوب خوابیدی — صبح شد.');
+  },1400);
+}
+function smelt(){
+  if(state.inv.stone>=2&&state.inv.wood>=1){
+    state.inv.stone-=2; state.inv.wood-=1; state.inv.iron++;
+    state.stats.xp+=5; state.score+=3;
+    Sfx.smelt();
+    msg('۱ آهن ذوب شد.');
+    checkLevel(); refreshInventory(); refreshCraft(); saveGame();
+  } else msg('کوره: ۲ سنگ + ۱ چوب ← ۱ آهن.');
+}
+function damagePlayer(d,reason,combat=false){
+  if(state.dead) return;
+  if(combat){
+    if(state.invuln>0) return;
+    state.invuln=.8;
+    if(state.helmetOn) d*=.6;
+    shake=.45;
+    Sfx.hurt();
+    const v=$('vignette');
+    v.classList.remove('hit'); void v.offsetWidth; v.classList.add('hit');
+    if(navigator.vibrate) navigator.vibrate(30);
+  }
+  state.stats.health=clamp(state.stats.health-d,0,100);
+  if(state.stats.health<=0) die(reason);
+}
+function die(reason){
+  if(state.dead) return;
+  state.dead=true; state.running=false;
+  clearEnemies();
+  Sfx.die();
+  const keep=state.hasChest?.75:.5;
+  for(const k of ['wood','stone','iron','food','rawMeat','water','arrow'])
+    state.inv[k]=Math.floor(state.inv[k]*keep);
+  const best=+localStorage.getItem('cb_best')||0;
+  if(state.day-1>best) localStorage.setItem('cb_best',state.day-1);
+  $('death-reason').textContent='علت: '+reason;
+  $('death-stats').innerHTML=`بقا: <b>${fa(Math.max(1,state.day))} روز</b> — امتیاز: <b>${fa(Math.round(state.score))}</b>`;
+  $('sleep-fade').classList.remove('show');
+  $('action-hint').classList.add('hidden');
+  focusRing.visible=false;
+  $('death-screen').classList.remove('hidden');
+  saveGame();
+}
+function respawn(){
+  state.dead=false;
+  state.stats.health=70; state.stats.energy=100;
+  state.stats.hunger=Math.max(35,state.stats.hunger);
+  state.stats.thirst=Math.max(35,state.stats.thirst);
+  state.invuln=3;
+  player.position.set(state.respawn.x,0,state.respawn.z);
+  state.running=true;
+  $('death-screen').classList.add('hidden');
+  $('vignette').classList.remove('low');
+  refreshInventory(); refreshCraft(); updateHUD();
+  msg('به زندگی برگشتی.');
+  saveGame();
+}
+
+/* ============================================================
+   ۱۳) به‌روزرسانی دنیا: روز/شب، وضعیت، دشمن‌ها، آتش
+============================================================ */
+const clock={elapsed:0};
+let enemySpawnT=4;
+function updateDayNight(dt){
+  if(!state.sleeping) state.t+=dt;
+  const dur=state.isNight?CFG.nightSec:CFG.daySec;
+  const k=clamp(state.t/dur,0,1);
+  if(!state.isNight){
+    const dk=clamp(Math.min(k,1-k)*8,.12,1);
+    skyC.lerpColors(SKY.dusk,SKY.day,dk);
+    sun.intensity=2.4*dk;
+    sun.position.set(Math.cos(Math.PI*k)*46,Math.sin(Math.PI*k)*38+3,12);
+    sunMesh.position.copy(sun.position).multiplyScalar(2.2);
+    sunMesh.visible=true; moonMesh.visible=false; moon.intensity=0;
+    stars.material.opacity=Math.max(0,1-dk*2);
+    hemi.intensity=.15+.5*dk; amb.intensity=.18+.1*dk;
+    scene.fog.density=.008;
+  } else {
+    const nk=clamp(k*4,0,1);
+    skyC.lerpColors(SKY.dusk,SKY.night,nk);
+    sun.intensity=0; sunMesh.visible=false;
+    moon.intensity=.45*nk;
+    moonMesh.visible=true;
+    moonMesh.position.set(-40,28+Math.sin(k*Math.PI)*12,-25);
+    stars.material.opacity=nk;
+    hemi.intensity=.12; amb.intensity=.12;
+    scene.fog.density=.012;
+  }
+  scene.fog.color.copy(skyC);
+  $('day-prog-fill').style.width=(k*100)+'%';
+  if(state.t>=dur){
+    state.t=0;
+    if(state.isNight) onDawn(); else onDusk();
+  }
+}
+function onDawn(){
+  state.isNight=false;
+  state.day++;
+  state.score+=10;
+  state.stats.energy=Math.min(100,state.stats.energy+20);
+  clearEnemies(true);
+  spawnPrey(); spawnPrey();
+  Sfx.dawn();
+  msg(`روز ${fa(state.day)} — +۱۰ امتیاز بقا`);
+  $('day-text').textContent=`روز ${fa(state.day)}`;
+  $('day-icon').innerHTML=ic('sun',15);
+  saveGame();
+}
+function onDusk(){
+  state.isNight=true;
+  $('day-icon').innerHTML=ic('moon',15);
+  enemySpawnT=rand(3,6);
+  if(!structures.some(s=>s.userData.kind==='campfire'&&s.userData.fuel>0)&&!state.tipFire){
+    state.tipFire=true;
+    msg('شب شد و آتش نداری! سریع آتش‌گاه بساز (۳ چوب + ۱ سنگ).');
+  } else {
+    msg('غروب کرد — کنار آتش بمان!');
+  }
+  Sfx.howl();
+  spawnEnemy('wolf');
+}
+function inShelter(){
+  return structures.some(s=>s.userData.kind==='shelter'&&
+    Math.hypot(s.position.x-player.position.x,s.position.z-player.position.z)<1.4);
+}
+function updateStats(dt){
+  const s=state.stats;
+  s.hunger=clamp(s.hunger-dt*.13,0,100);
+  s.thirst=clamp(s.thirst-dt*.17,0,100);
+  if(state.runningFast&&state.moving) s.energy=clamp(s.energy-dt*5,0,100);
+  else s.energy=clamp(s.energy+dt*(state.moving?1.4:3.2),0,100);
+  if(s.hunger<=0) damagePlayer(dt*1,'گرسنگی');
+  if(s.thirst<=0) damagePlayer(dt*1.5,'تشنگی');
+  if(state.isNight&&!nearLitFire(player.position.x,player.position.z,6.5)&&!inShelter()){
+    damagePlayer(dt*.7,'سرمای شب');
+    if(!state.coldWarned){ state.coldWarned=true; msg('سرما گرفته‌ای — به آتش نزدیک شو!'); }
+  } else state.coldWarned=false;
+  if(s.health<30) $('vignette').classList.add('low');
+  else $('vignette').classList.remove('low');
+  updateHUD();
+}
+function updateEnemies(dt,now){
+  if(state.isNight&&!state.sleeping){
+    enemySpawnT-=dt;
+    if(enemySpawnT<=0){
+      enemySpawnT=rand(6,10);
+      const maxE=state.day<3?3:(state.day<6?5:7);
+      if(enemies.filter(e=>!e.prey).length<maxE)
+        spawnEnemy(Math.random()<.65?'wolf':'zombie');
+    }
+  }
+  for(const e of enemies){
+    if(e.prey){ updatePrey(e,dt,now); updateEnemyBar(e); continue; }
+    if(e.dying) continue;
+    if(e.flash>0){ e.flash-=dt; if(e.flash<=0) e.bodyMat.emissive.setHex(0); }
+    const dx=player.position.x-e.mesh.position.x, dz=player.position.z-e.mesh.position.z;
+    const d=Math.hypot(dx,dz);
+    const fire=nearLitFire(e.mesh.position.x,e.mesh.position.z,4.5);
+    let sp=0;
+    if(fire){                            /* دفع با آتش */
+      const f=nearestLitFire(e.mesh.position.x,e.mesh.position.z);
+      e.dir=lerpAngle(e.dir,Math.atan2(e.mesh.position.x-f.position.x,e.mesh.position.z-f.position.z),dt*5);
+      sp=e.speed*.8;
+    } else if(d<15&&!state.dead){        /* تعقیب */
+      e.dir=lerpAngle(e.dir,Math.atan2(dx,dz),dt*4);
+      sp=e.speed;
+      e.cd-=dt;
+      if(d<1.2&&e.cd<=0){
+        e.cd=e.atkCd;
+        damagePlayer(e.dmg,e.name,true);
+        spawnBurst(player.position.x,1,player.position.z,0xc62828,5,1.5);
+      }
+    } else {                             /* پرسه */
+      e.wanderT-=dt;
+      if(e.wanderT<=0){ e.dir=Math.random()*TAU; e.wanderT=rand(1,3); }
+      sp=e.speed*.35;
+    }
+    e.mesh.position.x+=Math.sin(e.dir)*sp*dt;
+    e.mesh.position.z+=Math.cos(e.dir)*sp*dt;
+    resolveCollisions(e.mesh.position,.4);
+    e.mesh.position.x=clamp(e.mesh.position.x,-B+1,B-1);
+    e.mesh.position.z=clamp(e.mesh.position.z,-B+1,B-1);
+    e.mesh.rotation.y=e.dir;
+    const run=Math.sin(now*(sp>2?10:5)+e.phase)*.5*(sp>.1?1:0);
+    if(e.legs&&e.legs.length>=4){
+      e.legs[0].rotation.x=run;  e.legs[3].rotation.x=run;
+      e.legs[1].rotation.x=-run; e.legs[2].rotation.x=-run;
+    } else if(e.legs){
+      e.legs[0].rotation.x=run; e.legs[1].rotation.x=-run;
+    }
+    e.growlT-=dt;
+    if(d<9&&e.growlT<=0){ e.growlT=rand(6,12); Sfx.growl(); }
+    updateEnemyBar(e);
+  }
+}
+function updateEnemyBar(e){
+  e.bar.position.set(e.mesh.position.x,e.barH+Math.max(0,e.mesh.position.y),e.mesh.position.z);
+  if(e.bar.visible) e.bar.lookAt(camera.position);
+}
+function updateCampfires(dt){
+  for(const s of structures){
+    const u=s.userData;
+    if(u.kind!=='campfire'||!u.fuelBar) continue;
+    if(u.fuel>0){
+      u.fuel-=dt;
+      if(u.fuel<=0){
+        u.fuel=0;
+        u.flameGroup.visible=false;
+        u.light.intensity=0;
+        msg('یک آتش خاموش شد!');
+      } else {
+        u.flameGroup.visible=true;
+        const base=.35+.65*clamp(u.fuel/CFG.fuelMax,0,1);
+        const fl=.92+Math.sin(clock.elapsed*11+s.position.x*3)*.12+Math.random()*.04;
+        u.flameGroup.scale.setScalar(base*fl);
+        u.light.intensity=1.8*fl;
+      }
+      setFuelBar(s);
+    }
+    u.fuelBar.g.lookAt(camera.position);
+  }
+}
+function updateRespawn(){
+  for(let i=respawnQueue.length-1;i>=0;i--){
+    const r=respawnQueue[i];
+    if(clock.elapsed<r.at) continue;
+    const n=r.node;
+    n.alive=true; n.hp=NODE_HP[n.kind];
+    n.mesh.visible=true;
+    n.mesh.scale.setScalar(.05);
+    scene.add(n.mesh);
+    if(!colliders.includes(n.col)) colliders.push(n.col);
+    tween(.6,p=>n.mesh.scale.setScalar(Math.max(.05,n.base*easeOutBack(p))));
+    respawnQueue.splice(i,1);
+  }
+}
+function animateAmbient(dt){
+  for(const c of clouds){
+    c.position.x+=dt*.6;
+    if(c.position.x>46) c.position.x=-46;
+  }
+  for(let i=0;i<ripples.length;i++){
+    const s=(clock.elapsed*.35+i*.5)%1;
+    ripples[i].scale.setScalar(.4+s*5.5);
+    ripples[i].material.opacity=.45*(1-s);
+  }
+}
+function updateDangerPill(){
+  const n=enemies.filter(e=>!e.prey&&!e.dying).length;
+  document.querySelector('#topbar .pill.danger').classList.toggle('hidden',n===0);
+  $('danger-val').textContent=fa(n);
+}
+
+/* ---------- حرکت بازیکن و دوربین ---------- */
+const keys={};
+let camYaw=0, camPitch=.5, camDist=6;
+let camTouch=null, camLastManual=-10, lastCX=0, lastCY=0;
+let stepT=0;
+function updatePlayer(dt,now){
+  state.invuln=Math.max(0,state.invuln-dt);
+  atkCdT=Math.max(0,atkCdT-dt);
+  let mx=0,mz=0;
+  if(keys.KeyW||keys.ArrowUp) mz-=1;
+  if(keys.KeyS||keys.ArrowDown) mz+=1;
+  if(keys.KeyA||keys.ArrowLeft) mx-=1;
+  if(keys.KeyD||keys.ArrowRight) mx+=1;
+  if(joy.active){ mx+=joy.x; mz+=joy.y; }
+  const len=Math.hypot(mx,mz);
+  state.moving=len>.15;
+  if(state.moving){
+    mx/=len||1; mz/=len||1;
+    const wx=mx*Math.cos(camYaw)+mz*Math.sin(camYaw);
+    const wz=mz*Math.cos(camYaw)-mx*Math.sin(camYaw);
+    const wantRun=(keys.ShiftLeft||keys.ShiftRight||state.runLock);
+    state.runningFast=wantRun&&state.stats.energy>2;
+    const sp=state.runningFast?CFG.run:CFG.walk;
+    player.position.x+=wx*sp*dt;
+    player.position.z+=wz*sp*dt;
+    resolveCollisions(player.position,.35);
+    player.rotation.y=lerpAngle(player.rotation.y,Math.atan2(wx,wz),Math.min(1,dt*10));
+    stepT-=dt;
+    if(stepT<=0){ Sfx.step(); stepT=state.runningFast?.27:.42; }
+    const sw=Math.sin(now*(state.runningFast?11:7))*(state.runningFast?.75:.55);
+    PP.legL.rotation.x=sw; PP.legR.rotation.x=-sw;
+    PP.armL.rotation.x=-sw*.7;
+    if(atkAnim<=0) PP.armR.rotation.x=sw*.7;
+  } else {
+    state.runningFast=false;
+    PP.legL.rotation.x*=.85; PP.legR.rotation.x*=.85;
+    PP.armL.rotation.x*=.85;
+    if(atkAnim<=0) PP.armR.rotation.x*=.85;
+  }
+  if(atkAnim>0){
+    atkAnim-=dt;
+    const p=1-Math.max(0,atkAnim)/.35;
+    PP.armR.rotation.x=-2.4*Math.sin(p*Math.PI);
+  }
+}
+function updateCamera(dt){
+  camPitch=clamp(camPitch,.15,1.15);
+  if(isTouch&&camTouch===null&&clock.elapsed-camLastManual>1.6&&state.moving){
+    camYaw=lerpAngle(camYaw,player.rotation.y,Math.min(1,dt*1.8));
+  }
+  const ty=player.position.y+1.6;
+  _v1.set(
+    player.position.x+Math.sin(camYaw)*Math.cos(camPitch)*camDist,
+    ty+Math.sin(camPitch)*camDist,
+    player.position.z+Math.cos(camYaw)*Math.cos(camPitch)*camDist);
+  camera.position.lerp(_v1,Math.min(1,dt*10));
+  if(camera.position.y<.4) camera.position.y=.4;
+  _v2.set(player.position.x,ty,player.position.z);
+  camera.lookAt(_v2);
+  if(shake>0){
+    camera.position.x+=(Math.random()-.5)*shake*.5;
+    camera.position.y+=(Math.random()-.5)*shake*.3;
+    shake=Math.max(0,shake-dt*1.8);
+  }
+}
+
+/* ---------- راهنمای اکشن ---------- */
+let lastHint='';
+function updateHint(){
+  let t=null, pos=null;
+  const s=nearestStructure();
+  if(s){
+    const k=s.userData.kind;
+    if(k==='campfire') t=(state.inv.wood>0?'سوخت‌دادن — سوخت: ':'آتش — سوخت: ')+fa(Math.round(s.userData.fuel));
+    else if(k==='furnace') t='ذوب آهن (۲ سنگ + ۱ چوب)';
+    else if(k==='shelter') t=state.isNight?'خواب تا طلوع':'سرپناه';
+    else if(k==='chest') t='صندوق فعال';
+    pos=s.position;
+  }
+  if(!t&&Math.hypot(player.position.x-LAKE.x,player.position.z-LAKE.z)<LAKE.r+1.3){
+    t='نوشیدن آب'; pos={x:LAKE.x,z:LAKE.z};
+  }
+  if(!t){
+    const n=nearestNode();
+    if(n){ t=LABEL[n.kind]; pos=n.mesh.position; }
+  }
+  if(t!==lastHint){
+    lastHint=t;
+    if(t){ $('hint-text').textContent=t; $('action-hint').classList.remove('hidden'); }
+    else $('action-hint').classList.add('hidden');
+  }
+  if(pos&&t){
+    focusRing.visible=true;
+    focusRing.position.set(pos.x,.07,pos.z);
+    focusRing.material.opacity=.32+.2*Math.sin(clock.elapsed*6);
+  } else focusRing.visible=false;
+}
+
+/* ---------- مینی‌مپ ---------- */
+const mmCtx=$('minimap').getContext('2d');
+function drawMinimap(){
+  const c=mmCtx, S=148, half=S/2;
+  c.clearRect(0,0,S,S);
+  c.save();
+  c.beginPath(); c.arc(half,half,half-2,0,TAU); c.clip();
+  c.fillStyle='#15202e'; c.fillRect(0,0,S,S);
+  const zoom=S/46;
+  const px=player.position.x, pz=player.position.z;
+  const mx=x=>half+(x-px)*zoom, my=z=>half+(z-pz)*zoom;
+  c.fillStyle='#2c6f8f';
+  c.beginPath(); c.arc(mx(LAKE.x),my(LAKE.z),LAKE.r*zoom,0,TAU); c.fill();
+  for(const n of nodes){
+    if(!n.alive) continue;
+    c.fillStyle=n.kind==='tree'?'#2e6b2e':(n.kind==='rock'?'#8d949c':'#c62828');
+    c.fillRect(mx(n.mesh.position.x)-1.5,my(n.mesh.position.z)-1.5,3,3);
+  }
+  for(const s of structures){
+    c.fillStyle=s.userData.kind==='campfire'?'#ffb300':'#d9a441';
+    c.beginPath(); c.arc(mx(s.position.x),my(s.position.z),2.4,0,TAU); c.fill();
+  }
+  for(const e of enemies){
+    if(e.dying) continue;
+    c.fillStyle=e.prey?'#a5d6a7':'#ff5252';
+    c.beginPath(); c.arc(mx(e.mesh.position.x),my(e.mesh.position.z),2,0,TAU); c.fill();
+  }
+  c.save();
+  c.translate(half,half); c.rotate(player.rotation.y);
+  c.fillStyle='#ffffff';
+  c.beginPath(); c.moveTo(0,-5.5); c.lineTo(-3.5,3.5); c.lineTo(3.5,3.5); c.closePath(); c.fill();
+  c.restore();
+  c.restore();
+}
+
+/* ============================================================
+   ۱۴) ورودی: کیبورد، ماوس، لمس
+============================================================ */
+addEventListener('keydown',e=>{
+  if(e.repeat) return;
+  keys[e.code]=true;
+  if(e.code==='Space'){ e.preventDefault(); attack(); }
+  else if(e.code==='KeyE') interact();
+  else if(e.code==='KeyC') toggleCraft();
+  else if(e.code==='KeyP') togglePause();
+  else if(e.code==='KeyM') toggleMute();
+  else if(e.code==='Escape'){
+    if($('craft-panel').classList.contains('show')) toggleCraft();
+    else togglePause();
+  }
+  else if(e.code.startsWith('Digit')){
+    const map={Digit1:'axe',Digit2:'pickaxe',Digit3:'sword',Digit4:'ironSword',Digit5:'bow'};
+    const id=map[e.code];
+    if(id&&state.inv[id]>0){
+      state.equipped=(state.equipped===id)?null:id;
+      updateEquippedTool(); Sfx.click();
+    }
+  }
+});
+addEventListener('keyup',e=>keys[e.code]=false);
+
+/* ماوس: درگ = دوربین، کلیک کوتاه = حمله */
+let dragging=false, dragDist=0, lastX=0, lastY=0;
+const cnv=renderer.domElement;
+cnv.addEventListener('pointerdown',e=>{
+  if(isTouch) return;
+  dragging=true; dragDist=0; lastX=e.clientX; lastY=e.clientY;
+});
+addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const dx=e.clientX-lastX, dy=e.clientY-lastY;
+  dragDist+=Math.abs(dx)+Math.abs(dy);
+  camYaw-=dx*.0065;
+  camPitch=clamp(camPitch+dy*.005,.15,1.15);
+  lastX=e.clientX; lastY=e.clientY;
+});
+addEventListener('pointerup',()=>{
+  if(dragging&&dragDist<6) attack();
+  dragging=false;
+});
+cnv.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* لمس: نیمه چپ = جوی‌استیک، نیمه راست = دوربین */
+const joy={active:false,id:null,cx:0,cy:0,x:0,y:0};
+const joyEl=$('joy'), joyBase=$('joy-base'), joyKnob=$('joy-knob');
+cnv.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.clientX<innerWidth*.45&&joy.id===null){
+      joy.id=t.identifier; joy.active=true;
+      joy.cx=t.clientX; joy.cy=t.clientY; joy.x=0; joy.y=0;
+      joyBase.style.left=t.clientX+'px'; joyBase.style.top=t.clientY+'px';
+      joyKnob.style.left=t.clientX+'px'; joyKnob.style.top=t.clientY+'px';
+      joyEl.classList.add('on');
+    } else if(camTouch===null){
+      camTouch=t.identifier; lastCX=t.clientX; lastCY=t.clientY;
+    }
+  }
+},{passive:false});
+cnv.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===joy.id){
+      const dx=t.clientX-joy.cx, dy=t.clientY-joy.cy;
+      const len=Math.hypot(dx,dy)||1, cl=Math.min(len,44);
+      joy.x=dx/len*(cl/44); joy.y=dy/len*(cl/44);
+      joyKnob.style.left=(joy.cx+dx/len*cl)+'px';
+      joyKnob.style.top=(joy.cy+dy/len*cl)+'px';
+    } else if(t.identifier===camTouch){
+      camYaw-=(t.clientX-lastCX)*.008;
+      camPitch=clamp(camPitch+(t.clientY-lastCY)*.006,.15,1.15);
+      lastCX=t.clientX; lastCY=t.clientY;
+      camLastManual=clock.elapsed;
+    }
+  }
+},{passive:false});
+const endTouch=e=>{
+  for(const t of e.changedTouches){
+    if(t.identifier===joy.id){
+      joy.id=null; joy.active=false; joy.x=0; joy.y=0;
+      joyEl.classList.remove('on');
+    }
+    if(t.identifier===camTouch) camTouch=null;
+  }
+};
+cnv.addEventListener('touchend',endTouch);
+cnv.addEventListener('touchcancel',endTouch);
+document.addEventListener('gesturestart',e=>e.preventDefault());
+
+/* دکمه‌ها */
+ $('btn-attack').addEventListener('click',attack);
+ $('btn-interact').addEventListener('click',interact);
+ $('btn-run').addEventListener('click',()=>{
+  state.runLock=!state.runLock;
+  $('btn-run').classList.toggle('on',state.runLock);
+  Sfx.click();
+});
+ $('craft-toggle').addEventListener('click',toggleCraft);
+ $('craft-close').addEventListener('click',toggleCraft);
+ $('mute-btn').addEventListener('click',toggleMute);
+
+/* تغییر اندازه / توقف خودکار */
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden&&state.running&&!state.paused&&!state.dead&&!state.sleeping){
+    state.paused=true;
+    $('pause-screen').classList.remove('hidden');
+  }
+});
+
+/* ============================================================
+   ۱۵) ذخیره / بارگذاری / شروع
+============================================================ */
+const SAVE_KEY='craftb_save_v1';
+function saveGame(){
+  try{
+    localStorage.setItem(SAVE_KEY,JSON.stringify({
+      day:state.day,t:state.t,isNight:state.isNight,dead:state.dead,
+      level:state.level,score:state.score,stats:state.stats,inv:state.inv,dur:state.dur,
+      equipped:state.equipped,helmetOn:state.helmetOn,respawn:state.respawn,hasChest:state.hasChest,
+      tipTool:state.tipTool,tipFire:state.tipFire,
+      px:player.position.x,pz:player.position.z,
+      nodes:nodes.map(n=>({alive:n.alive,hp:n.hp})),
+      structures:structures.map(s=>({k:s.userData.kind,
+        x:+s.position.x.toFixed(2),z:+s.position.toFixed(2),
+        fuel:s.userData.kind==='campfire'?Math.round(s.userData.fuel):undefined})),
+    }));
+  }catch(e){}
+}
+function loadGame(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(!raw) return false;
+    const d=JSON.parse(raw);
+    if(!d||d.day===undefined) return false;
+    state.day=d.day; state.t=d.t||10; state.isNight=!!d.isNight;
+    state.level=d.level||1; state.score=d.score||0;
+    state.stats=Object.assign({health:100,energy:100,hunger:100,thirst:100,xp:0},d.stats);
+    state.inv=Object.assign({wood:0,stone:0,iron:0,food:2,rawMeat:0,water:1,
+      axe:0,pickaxe:0,sword:0,ironSword:0,helmet:0,bow:0,arrow:0,
+      campfire:0,furnace:0,shelter:0,chest:0},d.inv);
+    state.dur=Object.assign({axe:0,pickaxe:0,sword:0,ironSword:0},d.dur);
+    state.equipped=d.equipped||null; state.helmetOn=!!d.helmetOn;
+    state.respawn=d.respawn||{x:0,z:0}; state.hasChest=!!d.hasChest;
+    state.tipTool=!!d.tipTool; state.tipFire=!!d.tipFire;
+    state.dead=!!d.dead;
+    if(state.dead){ state.dead=false; state.stats.health=Math.max(40,state.stats.health); }
+    player.position.set(d.px||0,0,d.pz||0);
+    if(d.nodes){
+      d.nodes.forEach((nd,i)=>{
+        const n=nodes[i]; if(!n) return;
+        n.alive=!!nd.alive;
+        n.hp=(nd.hp!=null)?nd.hp:NODE_HP[n.kind];
+        n.mesh.visible=n.alive;
+        const ci=colliders.indexOf(n.col);
+        if(!n.alive){
+          if(ci>-1) colliders.splice(ci,1);
+          respawnQueue.push({node:n,at:clock.elapsed+rand(20,60)});
+        }
+      });
+    }
+    if(d.structures){
+      for(const s of d.structures){
+        const m=addStructure(s.k,s.x,s.z,false);
+        if(s.k==='campfire'&&s.fuel!=null){ m.userData.fuel=s.fuel; setFuelBar(m); }
+      }
+    }
+    PP.helmet.visible=state.helmetOn; PP.hair.visible=!state.helmetOn;
+    updateEquippedTool();
+    return true;
+  }catch(e){ return false; }
+}
+function resetWorld(){
+  for(const n of nodes){
+    n.alive=true; n.hp=NODE_HP[n.kind];
+    n.mesh.visible=true;
+    n.mesh.scale.setScalar(n.base);
+    scene.add(n.mesh);
+  }
+  colliders.length=0;
+  for(const n of nodes) colliders.push(n.col);
+  respawnQueue.length=0;
+  for(const s of structures) disposeObj(s);
+  structures.length=0;
+  clearEnemies();
+  for(const A of arrows) scene.remove(A.mesh);
+  arrows.length=0;
+  tweens.length=0;
+  $('toasts').innerHTML='';
+  state.day=1; state.t=20; state.isNight=false;
+  state.level=1; state.score=0;
+  state.stats={health:100,energy:100,hunger:100,thirst:100,xp:0};
+  state.inv={wood:0,stone:0,iron:0,food:2,rawMeat:0,water:1,
+    axe:0,pickaxe:0,sword:0,ironSword:0,helmet:0,bow:0,arrow:0,
+    campfire:0,furnace:0,shelter:0,chest:0};
+  state.dur={axe:0,pickaxe:0,sword:0,ironSword:0};
+  state.equipped=null; state.helmetOn=false; state.hasChest=false;
+  state.respawn={x:0,z:0};
+  state.dead=false; state.paused=false; state.sleeping=false;
+  state.coldWarned=false; state.tipTool=false; state.tipFire=false;
+  state.runLock=false; $('btn-run').classList.remove('on');
+  PP.helmet.visible=false; PP.hair.visible=true;
+  player.position.set(0,0,0); player.rotation.y=0;
+  camYaw=0; camPitch=.5;
+  updateEquippedTool();
+  spawnPrey(); spawnPrey();
+  refreshInventory(); refreshCraft(); updateHUD(); updateDangerPill();
+  $('day-text').textContent='روز ۱';
+  $('day-icon').innerHTML=ic('sun',15);
+  $('vignette').classList.remove('low');
+  $('action-hint').classList.add('hidden');
+  focusRing.visible=false;
+}
+let demo=true;
+function startNew(){
+  Sfx.init();
+  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+  resetWorld();
+  demo=false;
+  state.running=true;
+  $('start-screen').classList.add('hidden');
+  $('death-screen').classList.add('hidden');
+  $('pause-screen').classList.add('hidden');
+  msg('چوب و سنگ جمع کن — قبل از غروب آتش بساز!');
+}
+ $('btn-new').addEventListener('click',startNew);
+ $('btn-continue').addEventListener('click',()=>{
+  Sfx.init();
+  if(loadGame()){
+    demo=false;
+    state.running=true;
+    $('start-screen').classList.add('hidden');
+    $('day-text').textContent=`روز ${fa(state.day)}`;
+    $('day-icon').innerHTML=ic(state.isNight?'moon':'sun',15);
+    refreshInventory(); refreshCraft(); updateHUD(); updateDangerPill();
+    msg('بازی بارگذاری شد — روز '+fa(state.day));
+  } else startNew();
+});
+ $('btn-respawn').addEventListener('click',respawn);
+ $('btn-resume').addEventListener('click',togglePause);
+ $('btn-restart').addEventListener('click',()=>{
+  state.paused=false;
+  $('pause-screen').classList.add('hidden');
+  startNew();
+});
+ $('btn-sound').addEventListener('click',toggleMute);
+
+/* ذخیره‌ی خودکار هر ۳۰ ثانیه */
+setInterval(()=>{
+  if(state.running&&!state.dead&&!state.sleeping&&!state.paused) saveGame();
+},30000);
+
+/* ============================================================
+   ۱۶) حلقه‌ی اصلی
+============================================================ */
+let last=performance.now();
+let uiT=-1;
+function loop(now){
+  requestAnimationFrame(loop);
+  const rawDt=Math.min(.05,(now-last)/1000)||.016;
+  last=now;
+  let dt=rawDt;
+  if(hitstop>0){ dt*=.15; hitstop-=rawDt; }
+  clock.elapsed+=dt;
+  animateAmbient(dt);
+  updateParticles(dt);
+  updateTweens(dt);
+
+  if(demo){                             /* چرخش آرام دوربین پشت صفحه‌ی شروع */
+    camYaw+=rawDt*.07;
+    updateCamera(rawDt);
+    renderer.render(scene,camera);
+    return;
+  }
+  if(!state.running||state.paused||state.sleeping){
+    renderer.render(scene,camera);
+    return;
+  }
+  if(!state.dead){
+    updateDayNight(dt);
+    const tSec=now/1000;
+    updatePlayer(dt,tSec);
+    updateStats(dt);
+    updateEnemies(dt,tSec);
+    updateArrows(dt);
+    updateCampfires(dt);
+    updateRespawn();
+  }
+  updateCamera(dt);
+  updatePopups(dt);
+  updateHint();
+  if(clock.elapsed-uiT>.15){
+    uiT=clock.elapsed;
+    drawMinimap();
+    updateDangerPill();
+  }
+  renderer.render(scene,camera);
+}
+
+/* ============================================================
+   ۱۷) مقداردهی اولیه
+============================================================ */
+try{
+  if(localStorage.getItem('cb_muted')==='1'){
+    Sfx.muted=true;
+    $('mute-btn').innerHTML=ic('volumeOff',15);
+    $('btn-sound').textContent='صدا: خاموش';
+  }
+}catch(e){}
+if(localStorage.getItem(SAVE_KEY)) $('btn-continue').classList.remove('hidden');
+const _best=(()=>{ try{ return +localStorage.getItem('cb_best')||0; }catch(e){ return 0; } })();
+if(_best>0)
+  $('btn-new').insertAdjacentHTML('afterend',
+    `<p class="ov-sub" style="margin:2px 0 0">رکورد تو: ${fa(_best)} روز بقا</p>`);
+
+['pointerdown','keydown','touchstart'].forEach(ev=>
+  addEventListener(ev,()=>Sfx.init(),{once:true,passive:true}));
+if(isTouch) $('hint-key').style.display='none';
+
+refreshInventory();
+updateHUD();
+updateDayNight(0);
+updateCamera(.1);
+drawMinimap();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
