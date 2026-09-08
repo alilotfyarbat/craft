@@ -2274,10 +2274,15 @@ const pGeo = new THREE.CapsuleGeometry(.3, .5, 4, 8);
 const pMat = new THREE.MeshStandardMaterial({color: 0x4fc3f7, roughness: .8});
 let pSendT = 0;
 
+let myId = null; // این خط اضافه شد
 ws.onmessage = e => {
   try {
     const d = JSON.parse(e.data);
-    if(d.type === 'pos'){
+    if(d.type === 'init'){ // این بلاک اضافه شد
+      myId = d.id;
+      return;
+    }
+    if(d.type === 'pos' && d.id !== myId){ // شرط d.id !== myId اضافه شد
       if(!players[d.id]){
         const m = new THREE.Mesh(pGeo, pMat);
         m.castShadow = true;
@@ -2287,7 +2292,7 @@ ws.onmessage = e => {
       players[d.id].target.set(d.x, d.y, d.z);
       players[d.id].last = Date.now();
       players[d.id].mesh.rotation.y = d.r;
-    } else if(d.type === 'leave' && players[d.id]){
+    } else if(d.type === 'leave' && d.id !== myId){
       scene.remove(players[d.id].mesh);
       delete players[d.id];
     }
