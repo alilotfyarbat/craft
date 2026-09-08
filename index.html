@@ -2270,36 +2270,68 @@ setInterval(()=>{
 ============================================================ */
 const ws = new WebSocket('wss://craft-6yfw.onrender.com');
 const players = {};
-const pGeo = new THREE.CapsuleGeometry(.3, .5, 4, 8);
-const pMat = new THREE.MeshStandardMaterial({color: 0x4fc3f7, roughness: .8});
 let pSendT = 0;
+let syncT = 0;
 
-let myId = null; // این خط اضافه شد
+// ساخت یک شخصیت کامل برای بازیکنان دیگر (با لباس قرمز تا از خودتان فرق کند)
+function makeRemotePlayer() {
+  const g = new THREE.Group();
+  const shirt = new THREE.MeshStandardMaterial({color: 0xd32f2f, roughness: .8}); // لباس قرمز
+  const pants = new THREE.MeshStandardMaterial({color: 0x222233, roughness: .9});
+  const skin = new THREE.MeshStandardMaterial({color: 0xE8B08A, roughness: .7});
+
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(.3, .5, 4, 8), shirt);
+  body.position.y = .85; body.castShadow = true; g.add(body);
+  
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.24, 10, 8), skin);
+  head.position.y = 1.42; head.castShadow = true; g.add(head);
+  
+  const armGeo = new THREE.BoxGeometry(.13, .52, .13);
+  const armL = new THREE.Group(); armL.position.set(-.40, 1.28, 0);
+  const armLM = new THREE.Mesh(armGeo, shirt); armLM.position.y = -.26; armLM.castShadow = true; armL.add(armLM); g.add(armL);
+  const armR = new THREE.Group(); armR.position.set(.40, 1.28, 0);
+  const armRM = new THREE.Mesh(armGeo, shirt); armRM.position.y = -.26; armRM.castShadow = true; armR.add(armRM); g.add(armR);
+  
+  const legGeo = new THREE.BoxGeometry(.15, .56, .15);
+  const legL = new THREE.Group(); legL.position.set(-.14, .62, 0);
+  const legLM = new THREE.Mesh(legGeo, pants); legLM.position.y = -.28; legLM.castShadow = true; legL.add(legLM); g.add(legL);
+  const legR = new THREE.Group(); legR.position.set(.14, .62, 0);
+  const legRM = new THREE.Mesh(legGeo, pants); legRM.position.y = -.28; legRM.castShadow = true; legR.add(legRM); g.add(legR);
+  
+  g.userData = {armL, armR, legL, legR};
+  return g;
+}
+
+let myId = null;
 ws.onmessage = e => {
   try {
     const d = JSON.parse(e.data);
-    if(d.type === 'init'){ // این بلاک اضافه شد
+    if(d.type === 'init'){
       myId = d.id;
       return;
     }
-    if(d.type === 'pos' && d.id !== myId){ // شرط d.id !== myId اضافه شد
+    if(d.type === 'pos' && d.id !== myId){
       if(!players[d.id]){
-        const m = new THREE.Mesh(pGeo, pMat);
-        m.castShadow = true;
+        const m = makeRemotePlayer();
         scene.add(m);
-        players[d.id] = {mesh: m, target: new THREE.Vector3(d.x, d.y, d.z), last: Date.now()};
+        players[d.id] = {mesh: m, target: new THREE.Vector3(d.x, d.y, d.z), last: Date.now(), moving: false, phase: 0};
       }
       players[d.id].target.set(d.x, d.y, d.z);
       players[d.id].last = Date.now();
       players[d.id].mesh.rotation.y = d.r;
-    } else if(d.type === 'leave' && d.id !== myId){
+      players[d.id].moving = true;
+    } else if(d.type === 'leave' && d.id !== myId && players[d.id]){
       scene.remove(players[d.id].mesh);
       delete players[d.id];
+    } else if(d.type === 'world' && d.id !== myId) {
+      applyRemoteWorld(d);
+    } else if(d.type === 'structs' && d.id !== myId) {
+      applyRemoteStructs(d);
     }
   } catch(err){}
 };
 
-function updateMultiplayer(dt) {
+function updateMultiplayer(dt, now) {
   pSendT -= dt;
   if(pSendT <= 0) {
     pSendT = 0.05;
@@ -2311,16 +2343,87 @@ function updateMultiplayer(dt) {
       }));
     }
   }
+  
   for(const id in players) {
     if(Date.now() - players[id].last > 5000) {
       scene.remove(players[id].mesh);
       delete players[id];
       continue;
     }
-    players[id].mesh.position.lerp(players[id].target, Math.min(1, dt * 10));
+    const p = players[id];
+    const oldPos = p.mesh.position.clone();
+    p.mesh.position.lerp(p.target, Math.min(1, dt * 10));
+    
+    // اگر حرکت می‌کند، دست و پایش تکان بخورد
+    if(oldPos.distanceTo(p.mesh.position) > 0.01) {
+      p.phase += dt * 8;
+      const sw = Math.sin(p.phase) * 0.5;
+      if(p.mesh.userData.legL) p.mesh.userData.legL.rotation.x = sw;
+      if(p.mesh.userData.legR) p.mesh.userData.legR.rotation.x = -sw;
+      if(p.mesh.userData.armL) p.mesh.userData.armL.rotation.x = -sw * 0.7;
+      if(p.mesh.userData.armR) p.mesh.userData.armR.rotation.x = sw * 0.7;
+    } else {
+      // اگر وایساده است، دست و پا آرام باشند
+      if(p.mesh.userData.legL) p.mesh.userData.legL.rotation.x *= 0.8;
+      if(p.mesh.userData.legR) p.mesh.userData.legR.rotation.x *= 0.8;
+      if(p.mesh.userData.armL) p.mesh.userData.armL.rotation.x *= 0.8;
+      if(p.mesh.userData.armR) p.mesh.userData.armR.rotation.x *= 0.8;
+    }
   }
 }
 
+// ---------------- کدهای همگام‌سازی نقشه ----------------
+function sendWorldState() {
+  if(ws.readyState !== 1) return;
+  const nState = nodes.map(n => n.alive);
+  ws.send(JSON.stringify({ type:'world', state:nState }));
+  const sState = structures.map(s => ({
+    id: s.userData.kind, x: +s.position.x.toFixed(2), z: +s.position.toFixed(2),
+    fuel: s.userData.kind === 'campfire' ? Math.round(s.userData.fuel) : undefined
+  }));
+  ws.send(JSON.stringify({ type:'structs', list:sState }));
+}
+
+function applyRemoteWorld(data) {
+  if(!data.state) return;
+  data.state.forEach((alive, i) => {
+    const n = nodes[i];
+    if(n && n.alive !== alive) {
+      n.alive = alive;
+      n.mesh.visible = alive;
+      const ci = colliders.indexOf(n.col);
+      if(!alive) {
+        if(ci > -1) colliders.splice(ci, 1);
+        if(!respawnQueue.some(r => r.node === n)) {
+          respawnQueue.push({node:n, at:clock.elapsed + rand(20,60)});
+        }
+      } else {
+        if(ci === -1) colliders.push(n.col);
+        if(!n.mesh.parent) scene.add(n.mesh);
+        n.mesh.scale.setScalar(.05);
+        tween(.6, p => n.mesh.scale.setScalar(Math.max(.05, n.base * easeOutBack(p))));
+      }
+    }
+  });
+}
+
+function applyRemoteStructs(data) {
+  if(!data.list) return;
+  data.list.forEach(rs => {
+    const exists = structures.some(s => 
+      s.userData.kind === rs.id && 
+      Math.abs(s.position.x - rs.x) < 0.5 && 
+      Math.abs(s.position.z - rs.z) < 0.5
+    );
+    if(!exists) {
+      const m = addStructure(rs.id, rs.x, rs.z, false);
+      if(rs.id === 'campfire' && rs.fuel != null) {
+        m.userData.fuel = rs.fuel;
+        setFuelBar(m);
+      }
+    }
+  });
+}
 /* ============================================================
    ۱۶) حلقه‌ی اصلی
 ============================================================ */
@@ -2365,7 +2468,12 @@ function loop(now){
     drawMinimap();
     updateDangerPill();
   }
-  updateMultiplayer(dt);
+ updateMultiplayer(dt, now/1000);
+  syncT -= dt;
+  if(syncT <= 0) {
+    syncT = 0.5;
+    sendWorldState();
+  }
   renderer.render(scene,camera);
 }
 
