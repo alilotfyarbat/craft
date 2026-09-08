@@ -2308,8 +2308,8 @@ function loop(now){
     uiT=clock.elapsed;
     drawMinimap();
     updateDangerPill();
-    updateMultiplayer(dt); // این خط اضافه شد
   }
+  updateMultiplayer(dt);
   renderer.render(scene,camera);
 }
 
@@ -2339,7 +2339,7 @@ updateDayNight(0);
 updateCamera(.1);
 drawMinimap();
 requestAnimationFrame(loop);
-  /* ============================================================
+ /* ============================================================
    ۱۸) سیستم مولتی‌پلیر (آنلاین با دوست)
 ============================================================ */
 const ws = new WebSocket('wss://craft-6yfw.onrender.com');
